@@ -26,7 +26,11 @@
     input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
     select { font-size: 16px; }
     .nerven { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
-    .nerven > div { min-width: 0; overflow-x: auto; }
+    .nerven > div, #matrix { min-width: 0; overflow-x: auto; }
+    .ja { color: #2f855a; font-weight: bold; text-align: center; }
+    .nein { color: #bbb; text-align: center; }
+    .pruefhinweise { border-left: 4px solid #2b6cb0; background: #ebf4ff; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .pruefhinweise ul { margin: 4px 0 0; padding-left: 18px; }
     .warnung { background: #fff8e1; border-left: 4px solid #d69e2e; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
     .klein { font-size: 0.85em; color: #555; }
     textarea { width: 100%; height: 360px; font-family: Arial, sans-serif; font-size: 0.95em; box-sizing: border-box; }
@@ -65,8 +69,13 @@
   <h2>Sensible Neurographie</h2>
   <div class="nerven" id="sensibel"></div>
 
+  <h2>Motorische Kriterien je Nerv</h2>
+  <div id="matrix"></div>
+  <p class="klein" id="legende"></p>
+
   <h2>Befund</h2>
   <div id="warnungen"></div>
+  <div id="pruefhinweise"></div>
   <textarea id="ausgabe" readonly></textarea>
   <button id="kopieren">Befund kopieren</button>
   <button id="leeren">Alle Felder leeren</button>
@@ -941,11 +950,42 @@ if (typeof module !== 'undefined') module.exports = CIDP;
       return e;
     }
 
+    function zeigeMatrix(erg) {
+      const K = Object.keys(CIDP.KRITERIEN);
+      if (!erg.motor.length) {
+        $('matrix').innerHTML = '<p class="klein">Noch keine motorischen Werte eingegeben.</p>';
+        $('legende').innerHTML = '';
+        return;
+      }
+      const zeilen = erg.motor.map((n) => {
+        const zellen = K.map((x) => {
+          const k = n.kriterien[x];
+          return k.erfuellt ? `<td class="ja" title="${k.details.join('; ')}">✓</td>` : '<td class="nein">–</td>';
+        }).join('');
+        const info = K.flatMap((x) => n.kriterien[x].details).join('; ');
+        return `<tr><td>${n.name}</td>${zellen}<td class="klein">${info}</td></tr>`;
+      }).join('');
+      const m = erg.motorik;
+      const status = m.stark ? 'stark unterstützend' : m.schwach ? 'schwach unterstützend' : 'nicht erfüllt';
+      $('matrix').innerHTML = `<table><tr><th>Nerv</th>${K.map((x) => `<th>${x}</th>`).join('')}<th>Details</th></tr>${zeilen}</table>
+        <p><strong>Gesamt motorisch:</strong> ${status}</p>`;
+      $('legende').innerHTML = K.map((x) => `(${x}) ${CIDP.KRITERIEN[x]}`).join('<br>');
+    }
+
+    function zeigePruefhinweise(erg) {
+      const hinweise = erg.motor.flatMap((n) => n.hinweise.map((h) => `${n.name}: ${h}`));
+      $('pruefhinweise').innerHTML = hinweise.length
+        ? `<div class="pruefhinweise"><strong>Prüfhinweise</strong><ul>${hinweise.map((h) => `<li>${h}</li>`).join('')}</ul></div>`
+        : '';
+    }
+
     function aktualisiere() {
       const eingabe = leseEingabe();
       zeigeNormen(eingabe);
       const erg = CIDP.werteAus(eingabe, NORMWERTE);
       $('warnungen').innerHTML = erg.warnungen.map((w) => `<div class="warnung">${w}</div>`).join('');
+      zeigeMatrix(erg);
+      zeigePruefhinweise(erg);
       $('ausgabe').value = (erg.motor.length || erg.sensibilitaet.nerven.length) ? CIDP.befundtext(eingabe, erg) : '';
     }
 
