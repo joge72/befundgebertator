@@ -120,6 +120,8 @@ const CIDP = (function () {
   const unter = (p) => `${prozent(p)} unter dem Lower Limit of Normal`;
   const aufzaehlung = (teile) => (teile.length > 1 ? `${teile.slice(0, -1).join(', ')} sowie ${teile[teile.length - 1]}` : teile[0]);
 
+  const LEITLINIE = 'EAN/PNS-Leitlinie 2021 nach van den Bergh et al.';
+
   const T = {
     ueberschrift: (filter) => `CIDP-Programm (Filter ${filter} Hz – 10 kHz):`,
 
@@ -153,17 +155,17 @@ const CIDP = (function () {
     fNormal: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine regelrechte minimale F-Wellen-Latenz von ${zahl(wert)} ms.`,
     fVerlaengert: (nerv, wert, p) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz von ${zahl(wert)} ms (${ueber(p)}).`,
     fOhneNorm: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine minimale F-Wellen-Latenz von ${zahl(wert)} ms (ohne Körpergröße nicht bewertet).`,
-    fFehlt: (nerv) => `Nach Stimulation des ${nerv} sind keine F-Wellen auslösbar.`,
+    fFehlt: (nerv) => `Nach Stimulation des ${nerv} sind keine F-Wellen ableitbar.`,
     fFehltNichtGewertet: ' Bei einer distalen Amplitude unter 20 % des Lower Limit of Normal wird dies nicht als Demyelinisierungskriterium gewertet.',
 
     // Beurteilung
-    motorStark: 'Die motorischen Neurographiebefunde sind stark unterstützend für eine Demyelinisierung gemäß EAN/PNS-Leitlinie 2021 (Tab. 2):',
-    motorSchwach: 'Die motorischen Neurographiebefunde sind schwach unterstützend für eine Demyelinisierung gemäß EAN/PNS-Leitlinie 2021 (Tab. 2), da die Kriterien nur in einem Nerv erfüllt sind:',
-    motorNichtErfuellt: 'Die motorischen Neurographiebefunde sind auffällig, erfüllen aber nicht die Kriterien für eine Demyelinisierung gemäß EAN/PNS-Leitlinie 2021 (Tab. 2).',
-    motorUnauffaellig: 'Die motorische Neurographie ist unauffällig; die Kriterien für eine Demyelinisierung gemäß EAN/PNS-Leitlinie 2021 (Tab. 2) sind nicht erfüllt.',
+    motorStark: `Die motorischen Neurographiebefunde sind stark unterstützend für eine Demyelinisierung gemäß ${LEITLINIE}:`,
+    motorSchwach: `Die motorischen Neurographiebefunde sind schwach unterstützend für eine Demyelinisierung gemäß ${LEITLINIE}, da die Kriterien nur in einem Nerv erfüllt sind:`,
+    motorNichtErfuellt: `Die motorischen Neurographiebefunde sind auffällig, die CIDP-Kriterien gemäß ${LEITLINIE} sind nicht erfüllt.`,
+    motorUnauffaellig: `Die motorische Neurographie ist unauffällig, die CIDP-Kriterien gemäß ${LEITLINIE} sind nicht erfüllt.`,
     sensAuffaellig: (n, nerven) => `Sensible Leitungsauffälligkeiten in ${n} Nerv${n > 1 ? 'en' : ''} (${nerven.join(', ')}).`,
     sensUnauffaellig: 'Die sensible Neurographie ist in den untersuchten Nerven unauffällig.',
-    kategorie: (text, begruendung) => `Diagnostische Einordnung nach EAN/PNS-Leitlinie 2021 (Tab. 6), unter der Voraussetzung erfüllter klinischer Kriterien: ${text} (${begruendung}).`,
+    kategorie: (text, begruendung) => `Diagnostische Einordnung gemäß ${LEITLINIE}, unter der Voraussetzung erfüllter klinischer Kriterien: ${text} (${begruendung}).`,
   };
 
   // ---------- Motorik: Prüfung je Nerv ----------
