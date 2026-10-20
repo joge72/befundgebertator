@@ -140,7 +140,10 @@ const CIDP = (function () {
       const o = orte[ort.id];
       if (!o || !da(o.nlg)) return;
       const lln = normNlg(norm, ort.id, eingabe.alter);
-      if (!da(lln)) return;
+      if (!da(lln)) {
+        if (da(eingabe.alter)) hinweise.push(`NLG ${ort.segment} nicht bewertet (keine Norm für dieses Alter)`);
+        return;
+      }
       if (o.nlg < lln) auffaellig.push(`NLG ${ort.segment} verlangsamt`);
       if (o.nlg <= 0.7 * lln) {
         if (ort.ausgeschlossen) {
@@ -397,8 +400,8 @@ const CIDP = (function () {
     const motorNerven = [...new Set(motor.map((n) => n.nerv))];
     const tabelleNlg = motorNerven.some((nerv) => Array.isArray(normwerte.motorisch[nerv].nlg));
     const tabelleF = motorNerven.some((nerv) => Array.isArray(normwerte.motorisch[nerv].fLatenz));
-    if (tabelleNlg && !da(eingabe.alter)) fehlt.push('Alter fehlt: altersabhängige NLG-Normwerte können nicht angewandt werden');
-    if (tabelleF && !da(eingabe.groesse)) fehlt.push('Körpergröße fehlt: größenabhängige F-Wellen-Normwerte können nicht angewandt werden');
+    if (tabelleNlg && !da(eingabe.alter)) fehlt.push('Bitte Alter eingeben: Die NLG-Normwerte hängen vom Alter ab und werden sonst nicht bewertet.');
+    if (tabelleF && !da(eingabe.groesse)) fehlt.push('Bitte Körpergröße eingeben: Die F-Wellen-Normwerte von N. tibialis und N. peroneus hängen von der Größe ab und werden sonst nicht bewertet.');
     motorNerven.forEach((nerv) => {
       const n = normwerte.motorisch[nerv];
       const f = [];

@@ -137,19 +137,22 @@
 
     function zeigeNormen(eingabe) {
       const setze = (id, text) => { if ($(id)) $(id).textContent = text; };
-      const fmt = (v, vor, einheit) => (v === null || v === undefined ? 'fehlt' : `${vor} ${zahl(v)} ${einheit}`);
+      const fmt = (v, vor, einheit, leer = 'keine Norm') => (v === null || v === undefined ? leer : `${vor} ${zahl(v)} ${einheit}`);
+      // Altersabhängige Normen brauchen das Alter, größenabhängige die Körpergröße
+      const ohne = (tabelle, wert, text) => (Array.isArray(tabelle) && wert === null ? text : null);
       Object.entries(CIDP.MOTORISCH).forEach(([nerv, def]) => {
         const n = NORMWERTE.motorisch[nerv];
         setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
         setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
         setze(`n-${nerv}-dauer`, `≤ ${zahl(CIDP.DAUER_GRENZEN[eingabe.filter][nerv])} ms`);
-        setze(`n-${nerv}-f`, fmt(CIDP.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
-        def.orte.forEach((ort) => setze(`n-${nerv}-${ort.id}-nlg`, fmt(CIDP.normNlg(n, ort.id, eingabe.alter), '≥', 'm/s')));
+        setze(`n-${nerv}-f`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(CIDP.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
+        def.orte.forEach((ort) => setze(`n-${nerv}-${ort.id}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
+          || fmt(CIDP.normNlg(n, ort.id, eingabe.alter), '≥', 'm/s', 'keine Norm für dieses Alter')));
       });
       Object.keys(CIDP.SENSIBEL).forEach((nerv) => {
         const n = NORMWERTE.sensibel[nerv];
         setze(`ns-${nerv}-amp`, fmt(n.amp, '≥', 'µV'));
-        setze(`ns-${nerv}-nlg`, fmt(CIDP.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
+        setze(`ns-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben') || fmt(CIDP.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
       });
     }
 
