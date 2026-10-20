@@ -17,7 +17,6 @@
     .untertitel { color: #555; margin-top: 0; }
     .zeile { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
     .zeile label { white-space: nowrap; }
-    .zeile label:has(select#phaenotyp) { white-space: normal; }
     table { border-collapse: collapse; margin-bottom: 8px; }
     th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; font-size: 0.92em; }
     th { background: #edf2f7; }
@@ -27,14 +26,8 @@
     input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
     select { font-size: 16px; }
     .nerven { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
-    .nerven > div, #matrix { min-width: 0; overflow-x: auto; }
+    .nerven > div { min-width: 0; overflow-x: auto; }
     .warnung { background: #fff8e1; border-left: 4px solid #d69e2e; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
-    .kategorie { padding: 10px 12px; margin: 8px 0; font-weight: bold; border-left: 4px solid #718096; background: #f7fafc; }
-    .kategorie.sicher { border-color: #2f855a; background: #f0fff4; }
-    .kategorie.moeglich { border-color: #d69e2e; background: #fffff0; }
-    .kategorie .begruendung { font-weight: normal; font-size: 0.92em; margin-top: 4px; }
-    .ja { color: #2f855a; font-weight: bold; text-align: center; }
-    .nein { color: #bbb; text-align: center; }
     .klein { font-size: 0.85em; color: #555; }
     textarea { width: 100%; height: 360px; font-family: Arial, sans-serif; font-size: 0.95em; box-sizing: border-box; }
     button { margin: 10px 8px 0 0; padding: 8px 16px; cursor: pointer; }
@@ -47,8 +40,7 @@
 <body>
 
   <h1>CIDP-Befundgenerator</h1>
-  <p class="untertitel">Auswertung nach EAN/PNS-Leitlinie 2021 (Van den Bergh et al., Eur J Neurol 2021;28:3556–3583), Tabellen 2, 3 und 6.
-    Entscheidungshilfe – die Diagnose stellt die Ärztin bzw. der Arzt.</p>
+  <p class="untertitel">Auswertung nach EAN/PNS-Leitlinie 2021 (Van den Bergh et al., Eur J Neurol 2021;28:3556–3583).</p>
 
   <h2>Patient und Messbedingungen</h2>
   <div class="zeile">
@@ -73,21 +65,8 @@
   <h2>Sensible Neurographie</h2>
   <div class="nerven" id="sensibel"></div>
 
-  <h2>Klinik (optional, für die Diagnosekategorie nach Tab. 6)</h2>
-  <div class="zeile">
-    <label>Klinischer Phänotyp (klinische Kriterien erfüllt)
-      <select id="phaenotyp"><option value="">– keine Angabe –</option></select>
-    </label>
-  </div>
-  <div class="zeile" id="unterstuetzend" style="margin-top: 8px;"></div>
-
-  <h2>Ergebnis</h2>
+  <h2>Befund</h2>
   <div id="warnungen"></div>
-  <div id="kategorie"></div>
-  <h3>Motorische Kriterien je Nerv (Tab. 2)</h3>
-  <div id="matrix"></div>
-  <p class="klein" id="legende"></p>
-  <h3>Befundtext</h3>
   <textarea id="ausgabe" readonly></textarea>
   <button id="kopieren">Befund kopieren</button>
   <button id="leeren">Alle Felder leeren</button>
@@ -912,14 +891,6 @@ if (typeof module !== 'undefined') module.exports = CIDP;
       }).join('');
     }
 
-    function baueKlinik() {
-      Object.entries(CIDP.PHAENOTYPEN).forEach(([k, v]) => {
-        $('phaenotyp').insertAdjacentHTML('beforeend', `<option value="${k}">${v.charAt(0).toUpperCase() + v.slice(1)}</option>`);
-      });
-      $('unterstuetzend').innerHTML = 'Unterstützende Kriterien: ' + Object.entries(CIDP.UNTERSTUETZEND)
-        .map(([k, v]) => `<label><input type="checkbox" id="u-${k}"> ${v}</label>`).join('');
-    }
-
     // ---------- Normspalte ----------
 
     function zeigeNormen(eingabe) {
@@ -950,7 +921,7 @@ if (typeof module !== 'undefined') module.exports = CIDP;
         alter: lies('alter'), groesse: lies('groesse'), filter: parseInt($('filter').value, 10),
         kts: $('kts').checked,
         motorisch: {}, sensibel: {},
-        phaenotyp: $('phaenotyp').value, unterstuetzend: {},
+        phaenotyp: '', unterstuetzend: {},
       };
       Object.entries(CIDP.MOTORISCH).forEach(([nerv, def]) => ['re', 'li'].forEach((s) => {
         const p = `m-${nerv}-${s}`;
@@ -967,28 +938,7 @@ if (typeof module !== 'undefined') module.exports = CIDP;
         const p = `s-${nerv}-${s}`;
         e.sensibel[`${nerv}-${s}`] = { amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
       }));
-      Object.keys(CIDP.UNTERSTUETZEND).forEach((k) => (e.unterstuetzend[k] = $(`u-${k}`).checked));
       return e;
-    }
-
-    // ---------- Ergebnis anzeigen ----------
-
-    function zeigeMatrix(erg) {
-      const K = Object.keys(CIDP.KRITERIEN);
-      if (!erg.motor.length) { $('matrix').innerHTML = '<p class="klein">Noch keine motorischen Werte eingegeben.</p>'; return; }
-      const zeilen = erg.motor.map((n) => {
-        const zellen = K.map((x) => {
-          const k = n.kriterien[x];
-          return k.erfuellt ? `<td class="ja" title="${k.details.join('; ')}">✓</td>` : '<td class="nein">–</td>';
-        }).join('');
-        const info = [...K.flatMap((x) => n.kriterien[x].details), ...n.hinweise].join('; ');
-        return `<tr><td>${n.name}</td>${zellen}<td class="klein">${info}</td></tr>`;
-      }).join('');
-      const m = erg.motorik;
-      const status = m.stark ? 'stark unterstützend' : m.schwach ? 'schwach unterstützend' : 'nicht erfüllt';
-      $('matrix').innerHTML = `<table><tr><th>Nerv</th>${K.map((x) => `<th>${x}</th>`).join('')}<th>Details</th></tr>${zeilen}</table>
-        <p><strong>Gesamt motorisch:</strong> ${status}</p>`;
-      $('legende').innerHTML = K.map((x) => `(${x}) ${CIDP.KRITERIEN[x]}`).join('<br>');
     }
 
     function aktualisiere() {
@@ -996,16 +946,11 @@ if (typeof module !== 'undefined') module.exports = CIDP;
       zeigeNormen(eingabe);
       const erg = CIDP.werteAus(eingabe, NORMWERTE);
       $('warnungen').innerHTML = erg.warnungen.map((w) => `<div class="warnung">${w}</div>`).join('');
-      $('kategorie').innerHTML = erg.kategorie
-        ? `<div class="kategorie ${erg.kategorie.stufe}">${erg.kategorie.text}<div class="begruendung">${erg.kategorie.begruendung}</div></div>`
-        : '';
-      zeigeMatrix(erg);
       $('ausgabe').value = (erg.motor.length || erg.sensibilitaet.nerven.length) ? CIDP.befundtext(eingabe, erg) : '';
     }
 
     baueMotorisch();
     baueSensibel();
-    baueKlinik();
     document.addEventListener('input', aktualisiere);
     document.addEventListener('change', aktualisiere);
     $('kopieren').addEventListener('click', () => {
@@ -1014,7 +959,6 @@ if (typeof module !== 'undefined') module.exports = CIDP;
     $('leeren').addEventListener('click', () => {
       document.querySelectorAll('input[type=text]').forEach((el) => (el.value = ''));
       document.querySelectorAll('input[type=checkbox]').forEach((el) => (el.checked = false));
-      $('phaenotyp').value = '';
       aktualisiere();
     });
     aktualisiere();
