@@ -7,7 +7,8 @@
 //   amp      untere Normgrenze distale CMAP-Amplitude, negativer Gipfel (mV)
 //   nlg      untere Normgrenze motorische NLG (m/s), entweder eine Zahl für alle
 //            Segmente oder eine Tabelle nach Alter. Jede Zeile gilt bis
-//            einschließlich "alterBis"; die Segmente heißen nach dem
+//            einschließlich "alterBis" (ältere Patienten: letzte Zeile
+//            mit Warnhinweis); die Segmente heißen nach dem
 //            proximalen Stimulationsort:
 //              medianus  ell = Handgelenk–Ellenbogen, ax = Ellenbogen–Axilla, erb = Axilla–Erb
 //              ulnaris   ue = Handgelenk–unterhalb Sulcus, oe = über den Sulcus,
@@ -37,7 +38,7 @@ const NORMWERTE = {
         { alterBis: 40, ell: 49, ax: 49, erb: 53 },
         { alterBis: 50, ell: 46, ax: 46, erb: 53 },
         { alterBis: 60, ell: 44, ax: 44, erb: 53 },
-        { alterBis: 120, ell: 42, ax: 42, erb: null },
+        { alterBis: 70, ell: 42, ax: 42, erb: null },
       ],
       fLatenz: 31.0,
     },
@@ -50,7 +51,7 @@ const NORMWERTE = {
         { alterBis: 40, ue: 44, oe: 40, ax: 45, erb: 58 },
         { alterBis: 50, ue: 44, oe: 39, ax: 44, erb: 58 },
         { alterBis: 60, ue: 43, oe: 39, ax: 43, erb: null },
-        { alterBis: 120, ue: 42, oe: 38, ax: 42, erb: null },
+        { alterBis: 70, ue: 42, oe: 38, ax: 42, erb: null },
       ],
       fLatenz: 31.0,
     },
@@ -63,7 +64,7 @@ const NORMWERTE = {
         { alterBis: 40, fk: 42, kk: 42 },
         { alterBis: 50, fk: 40, kk: 40 },
         { alterBis: 60, fk: 39, kk: 39 },
-        { alterBis: 120, fk: 38, kk: 38 },
+        { alterBis: 70, fk: 38, kk: 38 },
       ],
       fLatenz: [
         { groesseBis: 160, wert: 52.7 },
@@ -80,7 +81,7 @@ const NORMWERTE = {
         { alterBis: 40, kk: 40 },
         { alterBis: 50, kk: 39 },
         { alterBis: 60, kk: 37 },
-        { alterBis: 120, kk: 35 },
+        { alterBis: 70, kk: 35 },
       ],
       fLatenz: [
         { groesseBis: 160, wert: 54.5 },
@@ -97,7 +98,7 @@ const NORMWERTE = {
         { alterBis: 40, wert: 50 },
         { alterBis: 50, wert: 47 },
         { alterBis: 60, wert: 44 },
-        { alterBis: 120, wert: 41 },
+        { alterBis: 70, wert: 41 },
       ],
     },
     // Blatt 2/7 (SNAP-Amplitude handschriftlich von 5,8 auf 7 korrigiert)
