@@ -364,8 +364,6 @@ const CIDP = (function () {
     const kategorie = bestimmeKategorie(eingabe, motor, motorik, sensibilitaet, motorNormalVier);
 
     const warnungen = [];
-    if (da(eingabe.tempHand) && eingabe.tempHand < 33) warnungen.push(`Hauttemperatur Hand ${zahl(eingabe.tempHand)} °C (Leitlinie: ≥ 33 °C)`);
-    if (da(eingabe.tempFuss) && eingabe.tempFuss < 30) warnungen.push(`Hauttemperatur Außenknöchel ${zahl(eingabe.tempFuss)} °C (Leitlinie: ≥ 30 °C)`);
     if (eingabe.kts && sensPath.some((s) => s.nerv === 'medianus')) warnungen.push('Pathologischer sensibler N. medianus bei Karpaltunnelsyndrom: Wertung kritisch prüfen');
     warnungen.push(...bereichsWarnungen(eingabe, normwerte, motor, sens));
     warnungen.push(...fehlendeNormen(normwerte, motor, sens, eingabe));
@@ -548,10 +546,7 @@ const CIDP = (function () {
 
   function befundtext(eingabe, erg) {
     const z = [];
-    const bed = [`Filter ${eingabe.filter} Hz – 10 kHz`];
-    if (da(eingabe.tempHand)) bed.push(`Hauttemperatur Hand ${zahl(eingabe.tempHand)} °C`);
-    if (da(eingabe.tempFuss)) bed.push(`Außenknöchel ${zahl(eingabe.tempFuss)} °C`);
-    z.push(`Elektroneurographie (${bed.join(', ')}):`);
+    z.push(`Elektroneurographie (Filter ${eingabe.filter} Hz – 10 kHz):`);
     const m = messtext(eingabe);
     if (m.motorisch.length) z.push('', 'Motorische Neurographie:', ...m.motorisch);
     if (m.sensibel.length) z.push('', 'Sensible Neurographie:', ...m.sensibel);

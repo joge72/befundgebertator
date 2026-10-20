@@ -50,8 +50,6 @@
         <option value="20">20 Hz</option>
       </select>
     </label>
-    <label>Hauttemperatur Hand (°C) <input type="text" inputmode="decimal" id="tempHand"></label>
-    <label>Außenknöchel (°C) <input type="text" inputmode="decimal" id="tempFuss"></label>
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
@@ -160,7 +158,7 @@
     function leseEingabe() {
       const e = {
         alter: lies('alter'), groesse: lies('groesse'), filter: parseInt($('filter').value, 10),
-        tempHand: lies('tempHand'), tempFuss: lies('tempFuss'), kts: $('kts').checked,
+        kts: $('kts').checked,
         motorisch: {}, sensibel: {},
         phaenotyp: $('phaenotyp').value, unterstuetzend: {},
       };
