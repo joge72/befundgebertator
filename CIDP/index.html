@@ -179,19 +179,15 @@
 
     function zeigeMatrix(erg) {
       const K = Object.keys(CIDP.KRITERIEN);
-      if (!erg.motor.length) {
-        $('matrix').innerHTML = '<p class="klein">Noch keine motorischen Werte eingegeben.</p>';
-        $('legende').innerHTML = '';
-        return;
-      }
-      const zeilen = erg.motor.map((n) => {
+      const leer = `<tr><td colspan="${K.length + 2}" class="klein">Noch keine motorischen Werte eingegeben.</td></tr>`;
+      const zeilen = erg.motor.length ? erg.motor.map((n) => {
         const zellen = K.map((x) => {
           const k = n.kriterien[x];
           return k.erfuellt ? `<td class="ja" title="${k.details.join('; ')}">✓</td>` : '<td class="nein">–</td>';
         }).join('');
         const info = K.flatMap((x) => n.kriterien[x].details).join('; ');
         return `<tr><td>${n.name}</td>${zellen}<td class="klein">${info}</td></tr>`;
-      }).join('');
+      }).join('') : leer;
       const m = erg.motorik;
       const status = m.stark ? 'stark unterstützend' : m.schwach ? 'schwach unterstützend' : 'nicht erfüllt';
       $('matrix').innerHTML = `<table><tr><th>Nerv</th>${K.map((x) => `<th>${x}</th>`).join('')}<th>Details</th></tr>${zeilen}</table>
