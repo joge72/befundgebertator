@@ -25,7 +25,7 @@ Prognose der idiopathischen Facialisparese (Messung am 10. Erkrankungstag):
 | Nerv | Muskel | Distanz (cm) | Leitzeit (ms) \* | SPA (mV) \*\* |
 |---|---|---|---|---|
 | N. suprascapularis | M. supraspinatus | 8,5 | 3,3 | |
-| | | 10,5 | 3,4 (auf dem Blatt „34,“ – bitte prüfen) | |
+| | | 10,5 | 3,4 | |
 | | M. infraspinatus | 14,0 | 4,4 | |
 | | | 17,0 | 4,4 | |
 | N. axillaris | M. deltoideus | 15,5 | 5,3 | 10 |
@@ -43,3 +43,11 @@ Prognose der idiopathischen Facialisparese (Messung am 10. Erkrankungstag):
 | N. phrenicus | Zwerchfell | | | > 300 µV |
 | N. femoralis | M. quadriceps femoris | 14,0 | 4,6 | |
 | | | 30,0 | 7,2 | |
+
+## Repetitive Stimulation
+
+- Reizung des N. facialis über dem Foramen stylomastoideum, Ableitung am M. mentalis / M. nasalis: 3 Hz, 10 Stimuli
+- Reizung des N. axillaris über dem Erb'schen Punkt, Ableitung am M. deltoideus: 3 Hz, 6 Stimuli
+- Pathologisch: Abfall der Amplitude der 5. gegenüber der 1. Reizantwort um > 10 %
+
+Tensilon-Test: Applikation von 2 mg und in der Folge 8 mg Tensilon (Edrophoniumchlorid).
