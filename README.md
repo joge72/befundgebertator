@@ -2,6 +2,8 @@
 
 Befundgenerator für die Elektrodiagnostik.
 
+Normwerte der proximalen motorischen Nerven: [Normwerte.md](Normwerte.md)
+
 ## Bereiche
 
 - [CIDP](CIDP/) – chronisch inflammatorische demyelinisierende Polyneuropathie
