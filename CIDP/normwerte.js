@@ -19,9 +19,7 @@
 //            "groesseBis" cm)
 //
 // Sensibel:
-//   latenz   obere Normgrenze distale Latenz (ms)
 //   amp      untere Normgrenze SNAP-Amplitude (µV)
-//   ampAb60  optional: untere Normgrenze SNAP-Amplitude ab 60 Jahren (µV)
 //   nlg      untere Normgrenze sensible NLG (m/s), als Zahl oder Tabelle nach
 //            Alter ({ alterBis, wert })
 //
@@ -93,7 +91,6 @@ const NORMWERTE = {
   },
   sensibel: {
     medianus: {
-      latenz: null,
       amp: 6.9,
       nlg: [
         { alterBis: 30, wert: 53 },
@@ -104,10 +101,10 @@ const NORMWERTE = {
       ],
     },
     // Blatt 2/7 (SNAP-Amplitude handschriftlich von 5,8 auf 7 korrigiert)
-    ulnaris:  { latenz: null, amp: 7, nlg: 44 },
+    ulnaris:  { amp: 7, nlg: 44 },
     // Blatt 7/7
-    radialis: { latenz: null, amp: 16.0, nlg: 55.0 },
-    suralis:  { latenz: null, amp: 10.0, ampAb60: null, nlg: 40.6 },
+    radialis: { amp: 16.0, nlg: 55.0 },
+    suralis:  { amp: 10.0, nlg: 40.6 },
   },
 };
 

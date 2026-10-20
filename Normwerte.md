@@ -44,10 +44,3 @@ Prognose der idiopathischen Facialisparese (Messung am 10. Erkrankungstag):
 | N. femoralis | M. quadriceps femoris | 14,0 | 4,6 | |
 | | | 30,0 | 7,2 | |
 
-## Repetitive Stimulation
-
-- Reizung des N. facialis über dem Foramen stylomastoideum, Ableitung am M. mentalis / M. nasalis: 3 Hz, 10 Stimuli
-- Reizung des N. axillaris über dem Erb'schen Punkt, Ableitung am M. deltoideus: 3 Hz, 6 Stimuli
-- Pathologisch: Abfall der Amplitude der 5. gegenüber der 1. Reizantwort um > 10 %
-
-Tensilon-Test: Applikation von 2 mg und in der Folge 8 mg Tensilon (Edrophoniumchlorid).

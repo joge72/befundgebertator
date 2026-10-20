@@ -297,11 +297,10 @@ const CIDP = (function () {
 
   function pruefeSensNerv(nerv, seite, d, norm, eingabe) {
     const def = SENSIBEL[nerv];
-    const ampLln = (nerv === 'suralis' && da(eingabe.alter) && eingabe.alter >= 60 && da(norm.ampAb60)) ? norm.ampAb60 : norm.amp;
+    const ampLln = norm.amp;
     const nlgLln = normNlg(norm, 'wert', eingabe.alter);
     const befunde = [];
     let ampPath = false;
-    if (da(d.latenz) && da(norm.latenz) && d.latenz > norm.latenz) befunde.push('Latenz verlängert');
     if (da(d.amp) && da(ampLln) && d.amp < ampLln) { befunde.push('Amplitude reduziert'); ampPath = true; }
     if (da(d.nlg) && da(nlgLln) && d.nlg < nlgLln) befunde.push('NLG verlangsamt');
 
@@ -392,7 +391,7 @@ const CIDP = (function () {
       if (fLeer) f.push('F-Wellen-Latenz');
       if (f.length) fehlt.push(`Normwert fehlt: ${MOTORISCH[nerv].name} motorisch (${f.join(', ')})`);
     });
-    const sfelder = { latenz: 'Latenz', amp: 'SNAP-Amplitude', nlg: 'NLG' };
+    const sfelder = { amp: 'SNAP-Amplitude', nlg: 'NLG' };
     [...new Set(sens.map((n) => n.nerv))].forEach((nerv) => {
       const f = Object.keys(sfelder).filter((x) => !da(normwerte.sensibel[nerv][x]));
       if (f.length) fehlt.push(`Normwert fehlt: ${SENSIBEL[nerv].name} sensibel (${f.map((x) => sfelder[x]).join(', ')})`);
@@ -519,7 +518,6 @@ const CIDP = (function () {
       const d = eingabe.sensibel[`${nerv}-${seite}`];
       if (!untersucht(d)) return;
       const teile = [];
-      if (da(d.latenz)) teile.push(`Latenz ${wert(d.latenz, 'ms')}`);
       if (da(d.amp)) teile.push(d.amp === 0 ? 'kein SNAP ableitbar' : `SNAP ${wert(d.amp, 'µV')}`);
       if (da(d.nlg)) teile.push(`NLG ${wert(d.nlg, 'm/s')}`);
       sens.push(`- ${def.name} ${s}: ${teile.join(', ')}`);

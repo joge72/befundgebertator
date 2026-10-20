@@ -122,7 +122,7 @@
         const z = (label, key) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`s-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="ns-${nerv}-${key}"></td></tr>`;
         return `<div><h3>${def.name}</h3><table>
           <tr><th></th><th>re.</th><th>li.</th><th>Norm</th></tr>
-          ${z('distale Latenz (ms)', 'latenz')}${z('SNAP (µV)', 'amp')}${z('NLG (m/s)', 'nlg')}
+          ${z('SNAP (µV)', 'amp')}${z('NLG (m/s)', 'nlg')}
         </table></div>`;
       }).join('');
     }
@@ -150,9 +150,7 @@
       });
       Object.keys(CIDP.SENSIBEL).forEach((nerv) => {
         const n = NORMWERTE.sensibel[nerv];
-        const amp = nerv === 'suralis' && eingabe.alter >= 60 && n.ampAb60 !== null && n.ampAb60 !== undefined ? n.ampAb60 : n.amp;
-        setze(`ns-${nerv}-latenz`, fmt(n.latenz, '≤', 'ms'));
-        setze(`ns-${nerv}-amp`, fmt(amp, '≥', 'µV'));
+        setze(`ns-${nerv}-amp`, fmt(n.amp, '≥', 'µV'));
         setze(`ns-${nerv}-nlg`, fmt(CIDP.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
       });
     }
@@ -179,7 +177,7 @@
       }));
       Object.keys(CIDP.SENSIBEL).forEach((nerv) => ['re', 'li'].forEach((s) => {
         const p = `s-${nerv}-${s}`;
-        e.sensibel[`${nerv}-${s}`] = { latenz: lies(`${p}-latenz`), amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
+        e.sensibel[`${nerv}-${s}`] = { amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
       }));
       Object.keys(CIDP.UNTERSTUETZEND).forEach((k) => (e.unterstuetzend[k] = $(`u-${k}`).checked));
       return e;
