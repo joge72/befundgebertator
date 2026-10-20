@@ -4,16 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CIDP-Befundgenerator</title>
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icon-180.png">
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../icon-180.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="CIDP">
+  <meta name="apple-mobile-web-app-title" content="Befunde">
   <meta name="theme-color" content="#2b6cb0">
   <style>
     body { font-family: Arial, sans-serif; margin: 20px auto; max-width: 1100px; padding: 0 16px; color: #222; }
     h1 { font-size: 1.5em; margin-bottom: 4px; }
     h2 { font-size: 1.15em; margin: 28px 0 8px; border-bottom: 2px solid #2b6cb0; padding-bottom: 4px; }
     h3 { font-size: 1em; margin: 16px 0 6px; }
+    .zurueck { display: inline-block; margin-bottom: 8px; color: #2b6cb0; text-decoration: none; }
     .untertitel { color: #555; margin-top: 0; }
     .zeile { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
     .zeile label { white-space: nowrap; }
@@ -1005,7 +1006,7 @@ if (typeof module !== 'undefined') module.exports = CIDP;
 
     // Offline-Nutzung als Web-App (nur über https, nicht als lokale Datei)
     if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
+      navigator.serviceWorker.register('../sw.js').catch(() => {});
     }
   </script>
 </body>

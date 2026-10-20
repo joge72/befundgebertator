@@ -1,8 +1,11 @@
 // Service Worker: hält die App für die Offline-Nutzung im Zwischenspeicher.
 // Mit Internet wird immer die neueste Version geladen, ohne Internet die gespeicherte.
 // Bei Änderungen an der Dateiliste VERSION erhöhen.
-const VERSION = 'cidp-v1';
-const DATEIEN = ['./', './index.html', './logik.js', './normwerte.js', './manifest.json', './icon-180.png', './icon-512.png'];
+const VERSION = 'befunde-v1';
+const DATEIEN = [
+  './', './index.html', './manifest.json', './icon-180.png', './icon-512.png',
+  './CIDP/', './CIDP/index.html', './CIDP/logik.js', './CIDP/normwerte.js',
+];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(VERSION).then((c) => c.addAll(DATEIEN)).then(() => self.skipWaiting()));

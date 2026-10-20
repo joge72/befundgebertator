@@ -9,4 +9,6 @@ html = (ordner / 'index.html').read_text(encoding='utf-8')
 for datei in ('normwerte.js', 'logik.js'):
     skript = (ordner / datei).read_text(encoding='utf-8')
     html = html.replace(f'<script src="{datei}"></script>', f'<script>\n{skript}\n</script>')
+# Der Link zur Übersicht funktioniert in der Einzeldatei nicht
+html = html.replace('  <a class="zurueck" href="../">← Übersicht</a>\n', '')
 (ordner / 'CIDP-Befundgenerator.html').write_text(html, encoding='utf-8')

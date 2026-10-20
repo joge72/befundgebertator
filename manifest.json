@@ -1,6 +1,6 @@
 {
-  "name": "CIDP-Befundgenerator",
-  "short_name": "CIDP",
+  "name": "Befundgenerator Elektrodiagnostik",
+  "short_name": "Befunde",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
