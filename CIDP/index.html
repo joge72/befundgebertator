@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CIDP-Befundgenerator</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px auto; max-width: 1100px; padding: 0 16px; color: #222; }
+    h1 { font-size: 1.5em; margin-bottom: 4px; }
+    h2 { font-size: 1.15em; margin: 28px 0 8px; border-bottom: 2px solid #2b6cb0; padding-bottom: 4px; }
+    h3 { font-size: 1em; margin: 16px 0 6px; }
+    .untertitel { color: #555; margin-top: 0; }
+    .zeile { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+    .zeile label { white-space: nowrap; }
+    table { border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; font-size: 0.92em; }
+    th { background: #edf2f7; }
+    td.norm { color: #555; white-space: nowrap; }
+    tr.ort td { background: #fafafa; }
+    tr.ort td:first-child { padding-left: 18px; }
+    input[type=text] { width: 70px; padding: 2px 4px; }
+    .nerven { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 0 24px; }
+    .warnung { background: #fff8e1; border-left: 4px solid #d69e2e; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .kategorie { padding: 10px 12px; margin: 8px 0; font-weight: bold; border-left: 4px solid #718096; background: #f7fafc; }
+    .kategorie.sicher { border-color: #2f855a; background: #f0fff4; }
+    .kategorie.moeglich { border-color: #d69e2e; background: #fffff0; }
+    .kategorie .begruendung { font-weight: normal; font-size: 0.92em; margin-top: 4px; }
+    .ja { color: #2f855a; font-weight: bold; text-align: center; }
+    .nein { color: #bbb; text-align: center; }
+    .klein { font-size: 0.85em; color: #555; }
+    textarea { width: 100%; height: 360px; font-family: Arial, sans-serif; font-size: 0.95em; box-sizing: border-box; }
+    button { margin: 10px 8px 0 0; padding: 8px 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <h1>CIDP-Befundgenerator</h1>
+  <p class="untertitel">Auswertung nach EAN/PNS-Leitlinie 2021 (Van den Bergh et al., Eur J Neurol 2021;28:3556–3583), Tabellen 2, 3 und 6.
+    Entscheidungshilfe – die Diagnose stellt die Ärztin bzw. der Arzt.</p>
+
+  <h2>Patient und Messbedingungen</h2>
+  <div class="zeile">
+    <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
+    <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
+    <label>Untere Filtergrenze
+      <select id="filter">
+        <option value="2">2 Hz</option>
+        <option value="5">5 Hz</option>
+        <option value="10">10 Hz</option>
+        <option value="20">20 Hz</option>
+      </select>
+    </label>
+    <label>Hauttemperatur Hand (°C) <input type="text" inputmode="decimal" id="tempHand"></label>
+    <label>Außenknöchel (°C) <input type="text" inputmode="decimal" id="tempFuss"></label>
+    <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
+  </div>
+
+  <h2>Motorische Neurographie</h2>
+  <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel, Dauer vom Beginn des ersten bis zum Ende des letzten negativen Gipfels.
+    NLG-Felder gelten für das Segment bis zum jeweiligen Stimulationsort.</p>
+  <div class="nerven" id="motorisch"></div>
+
+  <h2>Sensible Neurographie</h2>
+  <div class="nerven" id="sensibel"></div>
+
+  <h2>Klinik (optional, für die Diagnosekategorie nach Tab. 6)</h2>
+  <div class="zeile">
+    <label>Klinischer Phänotyp (klinische Kriterien erfüllt)
+      <select id="phaenotyp"><option value="">– keine Angabe –</option></select>
+    </label>
+  </div>
+  <div class="zeile" id="unterstuetzend" style="margin-top: 8px;"></div>
+
+  <h2>Ergebnis</h2>
+  <div id="warnungen"></div>
+  <div id="kategorie"></div>
+  <h3>Motorische Kriterien je Nerv (Tab. 2)</h3>
+  <div id="matrix"></div>
+  <p class="klein" id="legende"></p>
+  <h3>Befundtext</h3>
+  <textarea id="ausgabe" readonly></textarea>
+  <button id="kopieren">Befund kopieren</button>
+  <button id="leeren">Alle Felder leeren</button>
+
+  <script src="normwerte.js"></script>
+  <script src="logik.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+    const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
+
+    function lies(id) {
+      const el = $(id);
+      if (!el || el.value.trim() === '') return null;
+      const v = parseFloat(el.value.replace(',', '.'));
+      return Number.isNaN(v) ? null : v;
+    }
+
+    // ---------- Formular aufbauen ----------
+
+    function baueMotorisch() {
+      $('motorisch').innerHTML = Object.entries(CIDP.MOTORISCH).map(([nerv, def]) => {
+        const z = (label, key, normId) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`m-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="${normId || ''}"></td></tr>`;
+        let html = `<div><h3>${def.name} <span class="klein">(${def.muskel})</span></h3><table>
+          <tr><th>Stimulation ${def.distal}</th><th>re.</th><th>li.</th><th>Norm</th></tr>
+          ${z('DML (ms)', 'dml', `n-${nerv}-dml`)}
+          ${z('CMAP (mV)', 'amp', `n-${nerv}-amp`)}
+          ${z('CMAP-Dauer (ms)', 'dauer', `n-${nerv}-dauer`)}
+          ${z('F-Wellen-Latenz (ms)', 'fLatenz', `n-${nerv}-f`)}
+          <tr><td>keine F-Wellen</td>${['re', 'li'].map((s) => `<td><input type="checkbox" id="m-${nerv}-${s}-fFehlt"></td>`).join('')}<td></td></tr>`;
+        def.orte.forEach((ort) => {
+          html += `<tr><th colspan="4">Stimulation ${ort.name}${ort.ausgeschlossen ? ' <span class="klein">(Block/NLG über diesem Segment zählen nicht)</span>' : ''}</th></tr>`;
+          const zo = (label, key, normId) => `<tr class="ort"><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`m-${nerv}-${s}-${ort.id}-${key}`)}</td>`).join('')}<td class="norm" id="${normId || ''}"></td></tr>`;
+          html += zo('CMAP (mV)', 'amp') + zo('CMAP-Dauer (ms)', 'dauer') + zo(`NLG ${ort.segment} (m/s)`, 'nlg', `n-${nerv}-${ort.id}-nlg`);
+        });
+        return html + '</table></div>';
+      }).join('');
+    }
+
+    function baueSensibel() {
+      $('sensibel').innerHTML = Object.entries(CIDP.SENSIBEL).map(([nerv, def]) => {
+        const z = (label, key) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`s-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="ns-${nerv}-${key}"></td></tr>`;
+        return `<div><h3>${def.name}</h3><table>
+          <tr><th></th><th>re.</th><th>li.</th><th>Norm</th></tr>
+          ${z('distale Latenz (ms)', 'latenz')}${z('SNAP (µV)', 'amp')}${z('NLG (m/s)', 'nlg')}
+        </table></div>`;
+      }).join('');
+    }
+
+    function baueKlinik() {
+      Object.entries(CIDP.PHAENOTYPEN).forEach(([k, v]) => {
+        $('phaenotyp').insertAdjacentHTML('beforeend', `<option value="${k}">${v.charAt(0).toUpperCase() + v.slice(1)}</option>`);
+      });
+      $('unterstuetzend').innerHTML = 'Unterstützende Kriterien: ' + Object.entries(CIDP.UNTERSTUETZEND)
+        .map(([k, v]) => `<label><input type="checkbox" id="u-${k}"> ${v}</label>`).join('');
+    }
+
+    // ---------- Normspalte ----------
+
+    function zeigeNormen(eingabe) {
+      const setze = (id, text) => { if ($(id)) $(id).textContent = text; };
+      const fmt = (v, vor, einheit) => (v === null || v === undefined ? 'fehlt' : `${vor} ${zahl(v)} ${einheit}`);
+      Object.entries(CIDP.MOTORISCH).forEach(([nerv, def]) => {
+        const n = NORMWERTE.motorisch[nerv];
+        setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
+        setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
+        setze(`n-${nerv}-dauer`, `≤ ${zahl(CIDP.DAUER_GRENZEN[eingabe.filter][nerv])} ms`);
+        setze(`n-${nerv}-f`, fmt(CIDP.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
+        def.orte.forEach((ort) => setze(`n-${nerv}-${ort.id}-nlg`, fmt(CIDP.normNlg(n, ort.id, eingabe.alter), '≥', 'm/s')));
+      });
+      Object.keys(CIDP.SENSIBEL).forEach((nerv) => {
+        const n = NORMWERTE.sensibel[nerv];
+        const amp = nerv === 'suralis' && eingabe.alter >= 60 && n.ampAb60 !== null && n.ampAb60 !== undefined ? n.ampAb60 : n.amp;
+        setze(`ns-${nerv}-latenz`, fmt(n.latenz, '≤', 'ms'));
+        setze(`ns-${nerv}-amp`, fmt(amp, '≥', 'µV'));
+        setze(`ns-${nerv}-nlg`, fmt(CIDP.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
+      });
+    }
+
+    // ---------- Eingabe lesen ----------
+
+    function leseEingabe() {
+      const e = {
+        alter: lies('alter'), groesse: lies('groesse'), filter: parseInt($('filter').value, 10),
+        tempHand: lies('tempHand'), tempFuss: lies('tempFuss'), kts: $('kts').checked,
+        motorisch: {}, sensibel: {},
+        phaenotyp: $('phaenotyp').value, unterstuetzend: {},
+      };
+      Object.entries(CIDP.MOTORISCH).forEach(([nerv, def]) => ['re', 'li'].forEach((s) => {
+        const p = `m-${nerv}-${s}`;
+        const orte = {};
+        def.orte.forEach((ort) => {
+          orte[ort.id] = { amp: lies(`${p}-${ort.id}-amp`), dauer: lies(`${p}-${ort.id}-dauer`), nlg: lies(`${p}-${ort.id}-nlg`) };
+        });
+        e.motorisch[`${nerv}-${s}`] = {
+          dml: lies(`${p}-dml`), amp: lies(`${p}-amp`), dauer: lies(`${p}-dauer`),
+          fLatenz: lies(`${p}-fLatenz`), fFehlt: $(`${p}-fFehlt`).checked, orte,
+        };
+      }));
+      Object.keys(CIDP.SENSIBEL).forEach((nerv) => ['re', 'li'].forEach((s) => {
+        const p = `s-${nerv}-${s}`;
+        e.sensibel[`${nerv}-${s}`] = { latenz: lies(`${p}-latenz`), amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
+      }));
+      Object.keys(CIDP.UNTERSTUETZEND).forEach((k) => (e.unterstuetzend[k] = $(`u-${k}`).checked));
+      return e;
+    }
+
+    // ---------- Ergebnis anzeigen ----------
+
+    function zeigeMatrix(erg) {
+      const K = Object.keys(CIDP.KRITERIEN);
+      if (!erg.motor.length) { $('matrix').innerHTML = '<p class="klein">Noch keine motorischen Werte eingegeben.</p>'; return; }
+      const zeilen = erg.motor.map((n) => {
+        const zellen = K.map((x) => {
+          const k = n.kriterien[x];
+          return k.erfuellt ? `<td class="ja" title="${k.details.join('; ')}">✓</td>` : '<td class="nein">–</td>';
+        }).join('');
+        const info = [...K.flatMap((x) => n.kriterien[x].details), ...n.hinweise].join('; ');
+        return `<tr><td>${n.name}</td>${zellen}<td class="klein">${info}</td></tr>`;
+      }).join('');
+      const m = erg.motorik;
+      const status = m.stark ? 'stark unterstützend' : m.schwach ? 'schwach unterstützend' : 'nicht erfüllt';
+      $('matrix').innerHTML = `<table><tr><th>Nerv</th>${K.map((x) => `<th>${x}</th>`).join('')}<th>Details</th></tr>${zeilen}</table>
+        <p><strong>Gesamt motorisch:</strong> ${status}</p>`;
+      $('legende').innerHTML = K.map((x) => `(${x}) ${CIDP.KRITERIEN[x]}`).join('<br>');
+    }
+
+    function aktualisiere() {
+      const eingabe = leseEingabe();
+      zeigeNormen(eingabe);
+      const erg = CIDP.werteAus(eingabe, NORMWERTE);
+      $('warnungen').innerHTML = erg.warnungen.map((w) => `<div class="warnung">${w}</div>`).join('');
+      $('kategorie').innerHTML = erg.kategorie
+        ? `<div class="kategorie ${erg.kategorie.stufe}">${erg.kategorie.text}<div class="begruendung">${erg.kategorie.begruendung}</div></div>`
+        : '';
+      zeigeMatrix(erg);
+      $('ausgabe').value = (erg.motor.length || erg.sensibilitaet.nerven.length) ? CIDP.befundtext(eingabe, erg) : '';
+    }
+
+    baueMotorisch();
+    baueSensibel();
+    baueKlinik();
+    document.addEventListener('input', aktualisiere);
+    document.addEventListener('change', aktualisiere);
+    $('kopieren').addEventListener('click', () => {
+      navigator.clipboard.writeText($('ausgabe').value).catch(() => { $('ausgabe').select(); document.execCommand('copy'); });
+    });
+    $('leeren').addEventListener('click', () => {
+      document.querySelectorAll('input[type=text]').forEach((el) => (el.value = ''));
+      document.querySelectorAll('input[type=checkbox]').forEach((el) => (el.checked = false));
+      $('phaenotyp').value = '';
+      aktualisiere();
+    });
+    aktualisiere();
+  </script>
+</body>
+</html>
