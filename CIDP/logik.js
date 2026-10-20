@@ -367,23 +367,30 @@ const CIDP = (function () {
     if (da(eingabe.tempHand) && eingabe.tempHand < 33) warnungen.push(`Hauttemperatur Hand ${zahl(eingabe.tempHand)} °C (Leitlinie: ≥ 33 °C)`);
     if (da(eingabe.tempFuss) && eingabe.tempFuss < 30) warnungen.push(`Hauttemperatur Außenknöchel ${zahl(eingabe.tempFuss)} °C (Leitlinie: ≥ 30 °C)`);
     if (eingabe.kts && sensPath.some((s) => s.nerv === 'medianus')) warnungen.push('Pathologischer sensibler N. medianus bei Karpaltunnelsyndrom: Wertung kritisch prüfen');
-    const altersgrenze = hoechstesNormalter(normwerte, motor, sens);
-    if (da(eingabe.alter) && da(altersgrenze) && eingabe.alter > altersgrenze) {
-      warnungen.push(`Patient ${zahl(eingabe.alter, 0)} Jahre: Normwerte liegen nur bis ${altersgrenze} Jahre vor, gerechnet wird mit der ältesten vorhandenen Altersgruppe`);
-    }
+    warnungen.push(...bereichsWarnungen(eingabe, normwerte, motor, sens));
     warnungen.push(...fehlendeNormen(normwerte, motor, sens, eingabe));
 
     return { motor, motorik, motorNormalVier, sensibilitaet, kategorie, warnungen };
   }
 
-  // Obergrenze der altersabhängigen Normtabellen der untersuchten Nerven
-  function hoechstesNormalter(normwerte, motor, sens) {
-    const tabellen = [
-      ...motor.map((n) => normwerte.motorisch[n.nerv].nlg),
-      ...sens.map((n) => normwerte.sensibel[n.nerv].nlg),
-    ].filter(Array.isArray);
-    if (!tabellen.length) return null;
-    return Math.min(...tabellen.map((t) => t[t.length - 1].alterBis));
+  // Warnung, wenn Alter oder Größe außerhalb der Normtabellen liegen; gerechnet wird
+  // dann mit der nächstliegenden Zeile.
+  function bereichsWarnungen(eingabe, normwerte, motor, sens) {
+    const w = [];
+    const pruefe = (tabellen, wert, von, bis, text) => {
+      tabellen = tabellen.filter(Array.isArray);
+      if (!tabellen.length || !da(wert)) return;
+      const min = Math.max(...tabellen.map((t) => t[0][von]).filter(da));
+      const max = Math.min(...tabellen.map((t) => t[t.length - 1][bis]));
+      if (wert < min) w.push(text(`ab ${min}`));
+      else if (wert > max) w.push(text(`bis ${max}`));
+    };
+    const motorNorm = motor.map((n) => normwerte.motorisch[n.nerv]);
+    pruefe([...motorNorm.map((n) => n.nlg), ...sens.map((n) => normwerte.sensibel[n.nerv].nlg)], eingabe.alter, 'alterVon', 'alterBis',
+      (bereich) => `Patient ${zahl(eingabe.alter, 0)} Jahre: Normwerte liegen nur ${bereich} Jahre vor, gerechnet wird mit der nächstliegenden Altersgruppe`);
+    pruefe(motorNorm.map((n) => n.fLatenz), eingabe.groesse, 'groesseVon', 'groesseBis',
+      (bereich) => `Körpergröße ${zahl(eingabe.groesse, 0)} cm: F-Wellen-Normwerte liegen nur ${bereich} cm vor, gerechnet wird mit der nächstliegenden Größengruppe`);
+    return w;
   }
 
   function fehlendeNormen(normwerte, motor, sens, eingabe) {

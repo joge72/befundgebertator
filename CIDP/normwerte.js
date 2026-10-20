@@ -7,8 +7,9 @@
 //   amp      untere Normgrenze distale CMAP-Amplitude, negativer Gipfel (mV)
 //   nlg      untere Normgrenze motorische NLG (m/s), entweder eine Zahl für alle
 //            Segmente oder eine Tabelle nach Alter. Jede Zeile gilt bis
-//            einschließlich "alterBis" (ältere Patienten: letzte Zeile
-//            mit Warnhinweis); die Segmente heißen nach dem
+//            einschließlich "alterBis", die erste Zeile ab "alterVon". Außerhalb
+//            dieses Bereichs wird mit der nächstliegenden Zeile gerechnet und
+//            gewarnt. Die Segmente heißen nach dem
 //            proximalen Stimulationsort:
 //              medianus  ell = Handgelenk–Ellenbogen, ax = Ellenbogen–Axilla, erb = Axilla–Erb
 //              ulnaris   ue = Handgelenk–unterhalb Sulcus, oe = über den Sulcus,
@@ -16,8 +17,8 @@
 //              peroneus  fk = Fußrist–unterhalb Fibulaköpfchen, kk = über das Fibulaköpfchen
 //              tibialis  kk = Innenknöchel–Kniekehle
 //   fLatenz  obere Normgrenze minimale F-Wellen-Latenz (ms) bei distaler
-//            Stimulation, als Zahl oder Tabelle nach Körpergröße (bis einschließlich
-//            "groesseBis" cm)
+//            Stimulation, als Zahl oder Tabelle nach Körpergröße (von "groesseVon"
+//            bis einschließlich "groesseBis" cm, außerhalb wie beim Alter)
 //
 // Sensibel:
 //   amp      untere Normgrenze SNAP-Amplitude (µV)
@@ -34,7 +35,7 @@ const NORMWERTE = {
       dml: 4,
       amp: 4,
       nlg: [
-        { alterBis: 30, ell: 51, ax: 51, erb: 53 },
+        { alterVon: 20, alterBis: 30, ell: 51, ax: 51, erb: 53 },
         { alterBis: 40, ell: 49, ax: 49, erb: 53 },
         { alterBis: 50, ell: 46, ax: 46, erb: 53 },
         { alterBis: 60, ell: 44, ax: 44, erb: 53 },
@@ -47,7 +48,7 @@ const NORMWERTE = {
       dml: 3,
       amp: 4,
       nlg: [
-        { alterBis: 30, ue: 45, oe: 40, ax: 46, erb: 58 },
+        { alterVon: 20, alterBis: 30, ue: 45, oe: 40, ax: 46, erb: 58 },
         { alterBis: 40, ue: 44, oe: 40, ax: 45, erb: 58 },
         { alterBis: 50, ue: 44, oe: 39, ax: 44, erb: 58 },
         { alterBis: 60, ue: 43, oe: 39, ax: 43, erb: null },
@@ -60,16 +61,16 @@ const NORMWERTE = {
       dml: 5,
       amp: 3,
       nlg: [
-        { alterBis: 30, fk: 43, kk: 43 },
+        { alterVon: 20, alterBis: 30, fk: 43, kk: 43 },
         { alterBis: 40, fk: 42, kk: 42 },
         { alterBis: 50, fk: 40, kk: 40 },
         { alterBis: 60, fk: 39, kk: 39 },
         { alterBis: 70, fk: 38, kk: 38 },
       ],
       fLatenz: [
-        { groesseBis: 160, wert: 52.7 },
+        { groesseVon: 147, groesseBis: 160, wert: 52.7 },
         { groesseBis: 175, wert: 56.9 },
-        { groesseBis: 250, wert: 61.2 },
+        { groesseBis: 193, wert: 61.2 },
       ],
     },
     // Blatt 4/7
@@ -77,16 +78,16 @@ const NORMWERTE = {
       dml: 6,
       amp: 3,
       nlg: [
-        { alterBis: 30, kk: 42 },
+        { alterVon: 20, alterBis: 30, kk: 42 },
         { alterBis: 40, kk: 40 },
         { alterBis: 50, kk: 39 },
         { alterBis: 60, kk: 37 },
         { alterBis: 70, kk: 35 },
       ],
       fLatenz: [
-        { groesseBis: 160, wert: 54.5 },
+        { groesseVon: 147, groesseBis: 160, wert: 54.5 },
         { groesseBis: 175, wert: 58.0 },
-        { groesseBis: 250, wert: 63.6 },
+        { groesseBis: 193, wert: 63.6 },
       ],
     },
   },
@@ -94,7 +95,7 @@ const NORMWERTE = {
     medianus: {
       amp: 6.9,
       nlg: [
-        { alterBis: 30, wert: 53 },
+        { alterVon: 20, alterBis: 30, wert: 53 },
         { alterBis: 40, wert: 50 },
         { alterBis: 50, wert: 47 },
         { alterBis: 60, wert: 44 },
