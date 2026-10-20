@@ -24,11 +24,11 @@ const CIDP = (function () {
       ],
     },
     peroneus: {
-      name: 'N. peroneus', extremitaet: 'unten', distal: 'Sprunggelenk', muskel: 'M. extensor digitorum brevis',
+      name: 'N. peroneus', extremitaet: 'unten', distal: 'Fußrist', muskel: 'M. extensor digitorum brevis',
       orte: [
         { id: 'fk', name: 'unterhalb Fibulaköpfchen', segment: 'Unterschenkel' },
         // Leitungsblock und Verlangsamung über dem Knie zählen nicht (Tab. 2, Note 2)
-        { id: 'kk', name: 'Kniekehle', segment: 'Fibulaköpfchen', ausgeschlossen: true },
+        { id: 'kk', name: 'oberhalb Fibulaköpfchen', segment: 'Fibulaköpfchen', ausgeschlossen: true },
       ],
     },
     tibialis: {

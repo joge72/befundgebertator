@@ -12,7 +12,7 @@
 //              medianus  ell = Handgelenk–Ellenbogen, ax = Ellenbogen–Axilla, erb = Axilla–Erb
 //              ulnaris   ue = Handgelenk–unterhalb Sulcus, oe = über den Sulcus,
 //                        ax = oberhalb Sulcus–Axilla, erb = Axilla–Erb
-//              peroneus  fk = Sprunggelenk–Fibulaköpfchen, kk = über das Fibulaköpfchen
+//              peroneus  fk = Fußrist–unterhalb Fibulaköpfchen, kk = über das Fibulaköpfchen
 //              tibialis  kk = Innenknöchel–Kniekehle
 //   fLatenz  obere Normgrenze minimale F-Wellen-Latenz (ms) bei distaler
 //            Stimulation, als Zahl oder Tabelle nach Körpergröße (bis einschließlich
@@ -56,20 +56,21 @@ const NORMWERTE = {
       ],
       fLatenz: 31.0,
     },
+    // Blatt 3/7
     peroneus: {
-      dml: null,
-      amp: null,
+      dml: 5,
+      amp: 3,
       nlg: [
-        { alterBis: 30, fk: null, kk: null },
-        { alterBis: 40, fk: null, kk: null },
-        { alterBis: 50, fk: null, kk: null },
-        { alterBis: 60, fk: null, kk: null },
-        { alterBis: 120, fk: null, kk: null },
+        { alterBis: 30, fk: 43, kk: 43 },
+        { alterBis: 40, fk: 42, kk: 42 },
+        { alterBis: 50, fk: 40, kk: 40 },
+        { alterBis: 60, fk: 39, kk: 39 },
+        { alterBis: 120, fk: 38, kk: 38 },
       ],
       fLatenz: [
-        { groesseBis: 160, wert: null },
-        { groesseBis: 175, wert: null },
-        { groesseBis: 250, wert: null },
+        { groesseBis: 160, wert: 52.7 },
+        { groesseBis: 175, wert: 56.9 },
+        { groesseBis: 250, wert: 61.2 },
       ],
     },
     // Blatt 4/7
