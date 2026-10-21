@@ -46,17 +46,19 @@
 
   <a class="zurueck" href="../">← Übersicht</a>
   <h1>GBS-Befundgenerator</h1>
-  <p class="untertitel">Auswertung nach den modifizierten elektrodiagnostischen Kriterien von Rajabally et al. (J Neurol Neurosurg Psychiatry 2015;86:115–119).</p>
+  <p class="untertitel">Auswertung nach den modifizierten elektrodiagnostischen Kriterien von Rajabally et al. (J Neurol Neurosurg Psychiatry 2015;86:115–119)
+    und den stützenden Befunden der EAN/PNS-Leitlinie 2023 (van Doorn et al.).</p>
 
   <h2>Patient</h2>
   <div class="zeile">
     <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
     <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
-    <label>Krankheitstag <input type="text" inputmode="decimal" id="tag"></label>
+    <label>Tage seit Symptomonset <input type="text" inputmode="decimal" id="tag"></label>
+    <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
   <h2>Motorische Neurographie</h2>
-  <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel.</p>
+  <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel, Dauer vom Beginn des ersten bis zum Ende des letzten negativen Gipfels.</p>
   <div class="nerven" id="motorisch"></div>
 
   <h2>Sensible Neurographie</h2>
@@ -96,8 +98,10 @@
           <tr><th>Stimulation ${def.distal}</th><th>re.</th><th>li.</th><th>Norm</th></tr>
           ${z('DML (ms)', 'dml', `n-${nerv}-dml`)}
           ${z('CMAP (mV)', 'amp', `n-${nerv}-amp`)}
+          ${z('CMAP-Dauer (ms)', 'dauer', `n-${nerv}-dauer`)}
           ${z('F-Wellen-Latenz (ms)', 'fLatenz', `n-${nerv}-f`)}
           <tr><td>keine F-Wellen</td>${['re', 'li'].map((s) => `<td><input type="checkbox" id="m-${nerv}-${s}-fFehlt"></td>`).join('')}<td></td></tr>
+          <tr><td>A-Wellen</td>${['re', 'li'].map((s) => `<td><input type="checkbox" id="m-${nerv}-${s}-aWellen"></td>`).join('')}<td></td></tr>
           <tr><th colspan="4">Stimulation ${def.ort.name}</th></tr>
           ${z('CMAP (mV)', 'proxAmp', `n-${nerv}-prox`, 'ort')}
           ${z(`NLG ${def.ort.segment} (m/s)`, 'nlg', `n-${nerv}-nlg`, 'ort')}
@@ -126,6 +130,7 @@
         const n = NORMWERTE.motorisch[nerv];
         setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
         setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
+        setze(`n-${nerv}-dauer`, '≤ 8,5 ms');
         setze(`n-${nerv}-f`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(GBS.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
         setze(`n-${nerv}-prox`, def.ohneVerhaeltnis ? 'nicht gewertet' : 'Verhältnis > 0,7');
         setze(`n-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
@@ -141,11 +146,12 @@
     // ---------- Eingabe lesen ----------
 
     function leseEingabe() {
-      const e = { alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), motorisch: {}, sensibel: {} };
+      const e = { alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), kts: $('kts').checked, motorisch: {}, sensibel: {} };
       Object.keys(GBS.MOTORISCH).forEach((nerv) => ['re', 'li'].forEach((s) => {
         const p = `m-${nerv}-${s}`;
         e.motorisch[`${nerv}-${s}`] = {
-          dml: lies(`${p}-dml`), amp: lies(`${p}-amp`), fLatenz: lies(`${p}-fLatenz`), fFehlt: $(`${p}-fFehlt`).checked,
+          dml: lies(`${p}-dml`), amp: lies(`${p}-amp`), dauer: lies(`${p}-dauer`),
+          fLatenz: lies(`${p}-fLatenz`), fFehlt: $(`${p}-fFehlt`).checked, aWellen: $(`${p}-aWellen`).checked,
           proxAmp: lies(`${p}-proxAmp`), nlg: lies(`${p}-nlg`),
         };
       }));
@@ -173,7 +179,8 @@
       }).join('') : leer;
       const klasse = erg.klasse.typ ? KLASSEN[erg.klasse.typ] + (erg.form ? ` (${erg.form})` : '') : '–';
       $('matrix').innerHTML = `<table><tr><th>Nerv</th>${K.map((x) => `<th>${kurz[x]}</th>`).join('')}<th>Details</th></tr>${zeilen}</table>
-        <p><strong>Einordnung nach Rajabally:</strong> ${klasse}</p>`;
+        <p><strong>Einordnung nach Rajabally:</strong> ${klasse}<br>
+        <strong>Stützende Befunde (EAN/PNS 2023):</strong> ${erg.stuetzend.length ? erg.stuetzend.join('; ') : 'keine'}</p>`;
       $('legende').innerHTML = K.map((x) => `${kurz[x]}: ${GBS.MERKMALE[x]}`).join('<br>');
     }
 

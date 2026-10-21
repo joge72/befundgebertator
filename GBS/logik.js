@@ -1,5 +1,6 @@
 // Auswertung nach den modifizierten elektrodiagnostischen GBS-Kriterien
-// von Rajabally et al. (J Neurol Neurosurg Psychiatry 2015;86:115–119), Box 2.
+// von Rajabally et al. (J Neurol Neurosurg Psychiatry 2015;86:115–119), Box 2,
+// ergänzt um die stützenden Befunde der EAN/PNS-Leitlinie 2023 (van Doorn et al.).
 //
 // Demyelinisierende Merkmale je Nerv: NLG < 70 % LLN, DML > 150 % ULN,
 // F-Wellen-Latenz > 120 % ULN (> 150 % bei distaler CMAP < 50 % LLN).
@@ -8,9 +9,13 @@
 // anderen Nerv; allein sprechen sie für eine axonale Form.
 
 const GBS = (function () {
-  // AIDP-Kriterium "mindestens eines in mindestens zwei Nerven": streng heißt,
-  // dasselbe Merkmal muss in zwei Nerven vorliegen (wie bei CIDP).
-  const STRENG = true;
+  // AIDP-Kriterium "mindestens eines in mindestens zwei Nerven": streng hieße,
+  // dasselbe Merkmal muss in zwei Nerven vorliegen; sonst genügen zwei Nerven
+  // mit irgendeinem der demyelinisierenden Merkmale.
+  const STRENG = false;
+
+  // EAN/PNS 2023: distale CMAP-Dauer > 8,5 ms (Filter 2 Hz–10 kHz) stützt die Diagnose
+  const DAUER_GRENZE = 8.5;
 
   // Untersuchungsprotokoll nach Rajabally: je Nerv eine distale und eine proximale Stimulation
   const MOTORISCH = {
@@ -71,9 +76,10 @@ const GBS = (function () {
   const unter = (p) => `${prozent(p)} unter dem Lower Limit of Normal`;
   const aufzaehlung = (teile) => (teile.length > 1 ? `${teile.slice(0, -1).join(', ')} sowie ${teile[teile.length - 1]}` : teile[0]);
   const QUELLE = 'Rajabally et al. 2015';
+  const LEITLINIE = 'EAN/PNS-Leitlinie 2023 nach van Doorn et al.';
 
   const T = {
-    ueberschrift: (tag) => `GBS-Programm${da(tag) ? ` (${zahl(tag, 0)}. Krankheitstag)` : ''}:`,
+    ueberschrift: (tag) => `GBS-Programm${da(tag) ? ` (${zahl(tag, 0)} ${tag === 1 ? 'Tag' : 'Tage'} nach Symptomonset)` : ''}:`,
 
     // Motorische Neurographie
     motorSatz: (nerv, teile) => (teile.length
@@ -86,6 +92,7 @@ const GBS = (function () {
     nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
     verhaeltnis: (von, bis, v) => `eine Amplitudenreduktion zwischen ${von} und ${bis} (Verhältnis proximal/distal ${zahl(v, 2)})`,
     tibialisNichtGewertet: ', beim N. tibialis nicht als Kriterium gewertet',
+    dauer: (wert) => `eine verlängerte distale Potentialdauer von ${zahl(wert)} ms (Grenzwert ${zahl(DAUER_GRENZE)} ms)`,
 
     // Sensible Neurographie
     sensSatz: (nerv, teile) => (teile.length
@@ -94,13 +101,14 @@ const GBS = (function () {
     keinSnap: 'kein sensibles Nervenaktionspotential',
     snapReduziert: (wert, p) => `eine reduzierte Amplitude des sensiblen Nervenaktionspotentials von ${zahl(wert)} µV (${unter(p)})`,
     sensNlg: (wert, p) => `eine verlangsamte sensible Nervenleitgeschwindigkeit von ${zahl(wert)} m/s (${unter(p)})`,
-    suralSparing: 'Es zeigt sich ein Sural-Sparing-Muster (pathologisches sensibles Potential des N. medianus bzw. N. radialis bei regelrechtem N. suralis).',
+    suralSparing: 'Es zeigt sich ein Sural-Sparing-Muster (pathologisches sensibles Potential des N. medianus bzw. N. ulnaris bei regelrechtem N. suralis).',
 
     // F-Wellen Antwort
     fNormal: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine regelrechte minimale F-Wellen-Latenz von ${zahl(wert)} ms.`,
     fVerlaengert: (nerv, wert, p) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz von ${zahl(wert)} ms (${ueber(p)}).`,
     fOhneNorm: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine minimale F-Wellen-Latenz von ${zahl(wert)} ms (ohne Körpergröße nicht bewertet).`,
     fFehlt: (nerv) => `Nach Stimulation des ${nerv} sind keine F-Wellen ableitbar.`,
+    aWellen: (nerv) => `Nach Stimulation des ${nerv} finden sich indirekte Entladungen (A-Wellen).`,
 
     // Beurteilung
     aidp: `Die Befunde erfüllen die elektrophysiologischen Kriterien einer akuten inflammatorischen demyelinisierenden Polyradikuloneuropathie (AIDP) nach ${QUELLE}:`,
@@ -112,6 +120,10 @@ const GBS = (function () {
     amsan: 'AMSAN, motorisch-sensibel',
     sensAuffaellig: (n, nerven) => `Sensible Leitungsauffälligkeiten in ${n} Nerv${n > 1 ? 'en' : ''} (${nerven.join(', ')}).`,
     sensUnauffaellig: 'Die sensible Neurographie ist in den untersuchten Nerven unauffällig.',
+    stuetzend: `Gemäß ${LEITLINIE} stützen folgende Befunde mit hoher Spezifität die Diagnose eines GBS:`,
+    stuetzendSural: 'Sural-Sparing-Muster',
+    stuetzendDauer: (nerven) => `verlängerte distale CMAP-Dauer > ${zahl(DAUER_GRENZE)} ms (${nerven.join(', ')})`,
+    stuetzendA: (nerven) => `indirekte Entladungen (A-Wellen) (${nerven.join(', ')})`,
   };
 
   // ---------- Prüfung je motorischem Nerv ----------
@@ -148,6 +160,12 @@ const GBS = (function () {
       details.push(`distale CMAP ${zahl(d.amp)} mV (${prozent(d.amp / norm.amp)} der Norm)`);
     }
     if (ampBekannt && d.amp < 0.1 * norm.amp) m.amp10 = true;
+
+    const dauerLang = da(d.dauer) && d.dauer > DAUER_GRENZE;
+    if (dauerLang) {
+      auffaellig = true;
+      text.push(T.dauer(d.dauer));
+    }
 
     if (da(d.nlg)) {
       const lln = normNlg(norm, def.ort.id, eingabe.alter);
@@ -212,13 +230,15 @@ const GBS = (function () {
       }
     }
 
-    const hatMotorwerte = da(d.dml) || da(d.amp) || da(d.nlg) || da(d.proxAmp);
+    if (d.aWellen) fText = (fText ? fText + ' ' : '') + T.aWellen(nameLang);
+
+    const hatMotorwerte = da(d.dml) || da(d.amp) || da(d.dauer) || da(d.nlg) || da(d.proxAmp);
     return {
       id: `${nerv}-${seite}`, nerv, seite,
       name: `${def.name} ${SEITEN[seite]}`,
       merkmale: m, details, hinweise: hinweise.filter(Boolean),
       demyelinisierend: DEMYELINISIEREND.filter((x) => m[x]),
-      auffaellig, amp: d.amp, ampNorm: norm.amp,
+      auffaellig, amp: d.amp, ampNorm: norm.amp, dauerLang, aWellen: !!d.aWellen,
       motorText: hatMotorwerte ? T.motorSatz(nameLang, text) : null,
       fText,
     };
@@ -249,7 +269,8 @@ const GBS = (function () {
         if (liste.length >= 2) erfuellt.push({ merkmal: x, nerven: namen(liste) });
       });
     } else if (demyelNerven.length >= 2) {
-      erfuellt.push({ merkmal: 'demyelinisierend', nerven: namen(demyelNerven) });
+      const kurz = { nlg: 'NLG < 70 % LLN', dml: 'DML > 150 % ULN', fLatenz: 'F-Wellen-Latenz verlängert' };
+      erfuellt.push({ merkmal: 'demyelinisierend', nerven: demyelNerven.map((n) => `${n.name} (${n.demyelinisierend.map((x) => kurz[x]).join(', ')})`) });
     }
     ['fFehlt', 'verhaeltnis'].forEach((x) => {
       const liste = mit(x);
@@ -306,7 +327,7 @@ const GBS = (function () {
 
   // ---------- Gesamtauswertung ----------
 
-  const untersucht = (d) => !!d && Object.entries(d).some(([k, v]) => (k === 'fFehlt' ? v === true : da(v)));
+  const untersucht = (d) => !!d && Object.values(d).some((v) => (typeof v === 'boolean' ? v : da(v)));
 
   function werteAus(eingabe, normwerte) {
     const motor = [];
@@ -330,8 +351,16 @@ const GBS = (function () {
     }
 
     const suralGemessen = sens.filter((s) => s.nerv === 'suralis' && s.ampGemessen);
+    // EAN/PNS 2023: pathologisches SNAP des N. medianus oder N. ulnaris bei normalem N. suralis,
+    // nach Ausschluss eines Karpaltunnelsyndroms
     const suralSparing = suralGemessen.length > 0 && suralGemessen.every((s) => !s.ampPath)
-      && sens.some((s) => s.ampPath && (s.nerv === 'radialis' || s.nerv === 'medianus'));
+      && sens.some((s) => s.ampPath && (s.nerv === 'ulnaris' || (s.nerv === 'medianus' && !eingabe.kts)));
+    const stuetzend = [];
+    if (suralSparing) stuetzend.push(T.stuetzendSural);
+    const dauerNerven = motor.filter((n) => n.dauerLang).map((n) => n.name);
+    if (dauerNerven.length) stuetzend.push(T.stuetzendDauer(dauerNerven));
+    const aNerven = motor.filter((n) => n.aWellen).map((n) => n.name);
+    if (aNerven.length) stuetzend.push(T.stuetzendA(aNerven));
 
     const warnungen = bereichsWarnungen(eingabe, normwerte, motor, sens);
     if (!da(eingabe.alter) && motor.some((n) => Array.isArray(normwerte.motorisch[n.nerv].nlg))) {
@@ -340,11 +369,11 @@ const GBS = (function () {
     if (!da(eingabe.groesse) && motor.some((n) => Array.isArray(normwerte.motorisch[n.nerv].fLatenz))) {
       warnungen.push('Bitte Körpergröße eingeben: Die F-Wellen-Normwerte von N. tibialis und N. peroneus hängen von der Größe ab und werden sonst nicht bewertet.');
     }
-    if (!da(eingabe.tag)) warnungen.push('Bitte Krankheitstag eingeben.');
+    if (!da(eingabe.tag)) warnungen.push('Bitte Tage seit Symptomonset eingeben.');
 
     const pruefhinweise = motor.flatMap((n) => n.hinweise.map((h) => `${n.name}: ${h}`));
     if (da(eingabe.tag) && eingabe.tag <= 7) {
-      pruefhinweise.push('Untersuchung in der ersten Krankheitswoche: Ein normaler oder nicht eindeutiger Befund schließt ein GBS nicht aus, eine Kontrolluntersuchung ist zu erwägen.');
+      pruefhinweise.push('Untersuchung in der ersten Woche nach Symptomonset: Ein normaler oder nicht eindeutiger Befund schließt ein GBS nicht aus, eine Kontrolluntersuchung ist zu erwägen.');
     }
     if (da(eingabe.tag) && eingabe.tag > 21) {
       pruefhinweise.push('Die Kriterien nach Rajabally wurden an Untersuchungen innerhalb von 21 Tagen nach Symptombeginn entwickelt.');
@@ -356,7 +385,11 @@ const GBS = (function () {
       pruefhinweise.push('Amplitudenreduktionen bei axonalen Formen können einer reversiblen Leitungsstörung entsprechen; eine Verlaufskontrolle kann die Zuordnung ändern.');
     }
 
-    return { motor, sens, klasse, form, suralSparing, warnungen, pruefhinweise };
+    if (motor.some((n) => n.dauerLang)) {
+      pruefhinweise.push('Der Grenzwert der distalen CMAP-Dauer von 8,5 ms gilt für einen Filterbandpass von 2 Hz–10 kHz.');
+    }
+
+    return { motor, sens, klasse, form, suralSparing, stuetzend, warnungen, pruefhinweise };
   }
 
   // Warnung, wenn Alter oder Größe außerhalb der Normtabellen liegen
@@ -384,7 +417,7 @@ const GBS = (function () {
     nlg: MERKMALE.nlg,
     dml: MERKMALE.dml,
     fLatenz: MERKMALE.fLatenz,
-    demyelinisierend: 'Demyelinisierende Merkmale (NLG < 70 % LLN, DML > 150 % ULN oder F-Wellen-Latenz > 120 % ULN)',
+    demyelinisierend: 'Demyelinisierende Merkmale in mindestens zwei Nerven',
     fFehlt: MERKMALE.fFehlt,
     verhaeltnis: MERKMALE.verhaeltnis,
     amp80: MERKMALE.amp80,
@@ -419,6 +452,7 @@ const GBS = (function () {
       const path = erg.sens.filter((s) => s.pathologisch);
       z.push(path.length ? T.sensAuffaellig(path.length, path.map((s) => s.name)) : T.sensUnauffaellig);
     }
+    if (erg.stuetzend.length) z.push(T.stuetzend, ...erg.stuetzend.map((x) => `- ${x}`));
     return z.join('\n');
   }
 
