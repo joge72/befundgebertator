@@ -23,12 +23,9 @@
     th { background: #edf2f7; }
     td.norm { color: #555; white-space: nowrap; }
     td.mitte { text-align: center; }
-    tr.ort td { background: #fafafa; }
-    tr.ort td:first-child { padding-left: 18px; }
     input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
     select { font-size: 16px; }
-    .nerven { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
-    .nerven > div, #matrix { min-width: 0; overflow-x: auto; }
+    #matrix { min-width: 0; overflow-x: auto; }
     .ja { color: #2f855a; font-weight: bold; text-align: center; }
     .nein { color: #bbb; text-align: center; }
     .pruefhinweise { border-left: 4px solid #2b6cb0; background: #ebf4ff; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
@@ -41,6 +38,14 @@
       input[type=text] { width: 54px; }
       th, td { padding: 3px 4px; }
     }
+    .auswahl-gruppe { margin: 6px 0 10px; }
+    .auswahl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }
+    .auswahl label { white-space: nowrap; }
+    .bloecke { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
+    .block { min-width: 0; overflow-x: auto; }
+    .block table { margin-bottom: 6px; }
+    tr.normzeile td { background: #f7fafc; }
+    .leer { color: #555; font-size: 0.92em; }
   </style>
 </head>
 <body>
@@ -54,17 +59,24 @@
     <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
   </div>
 
+  <h2>Untersuchte Nerven</h2>
+  <div id="auswahl"></div>
+
   <h2>Plexus brachialis</h2>
   <h3>Motorisch</h3>
-  <div class="nerven" id="motorisch-brachialis"></div>
+  <div class="bloecke" id="motorisch-brachialis" data-bereich="motorisch-brachialis"></div>
+  <p class="leer" data-leer="motorisch-brachialis">Keine motorischen Nerven ausgewählt.</p>
   <h3>Sensibel</h3>
-  <div class="nerven" id="sensibel-brachialis"></div>
+  <div class="bloecke" id="sensibel-brachialis" data-bereich="sensibel-brachialis"></div>
+  <p class="leer" data-leer="sensibel-brachialis">Keine sensiblen Nerven ausgewählt.</p>
 
   <h2>Plexus lumbosacralis</h2>
   <h3>Motorisch</h3>
-  <div class="nerven" id="motorisch-lumbosacralis"></div>
+  <div class="bloecke" id="motorisch-lumbosacralis" data-bereich="motorisch-lumbosacralis"></div>
+  <p class="leer" data-leer="motorisch-lumbosacralis">Keine motorischen Nerven ausgewählt.</p>
   <h3>Sensibel</h3>
-  <div class="nerven" id="sensibel-lumbosacralis"></div>
+  <div class="bloecke" id="sensibel-lumbosacralis" data-bereich="sensibel-lumbosacralis"></div>
+  <p class="leer" data-leer="sensibel-lumbosacralis">Keine sensiblen Nerven ausgewählt.</p>
 
   <h2>Betroffene Nerven</h2>
   <div id="matrix"></div>
@@ -204,6 +216,110 @@ const NORMWERTE = {
 };
 
 if (typeof module !== 'undefined') module.exports = NORMWERTE;
+
+</script>
+  <script>
+// Gemeinsame Bausteine der Eingabemasken: Auswahl der untersuchten Nerven und
+// Tabellen im Aufbau der Gerätesoftware (Gebiete und Segmente je Nerv und Seite).
+
+const OBERFLAECHE = (function () {
+  const $ = (id) => document.getElementById(id);
+  const SEITEN = [['re', 'Rechts'], ['li', 'Links']];
+
+  // Bezeichnungen der Stimulationsorte wie in der Gerätesoftware
+  const KURZ = {
+    Handgelenk: 'Handgel', Ellenbogen: 'Ellbogen', 'unterhalb Ellenbogen': 'unter Ellbogen',
+    'oberhalb Ellenbogen': 'über Ellbogen', Erb: 'Plexus', 'unterhalb Fibulaköpfchen': 'unter Fibulaköpfchen',
+    'oberhalb Fibulaköpfchen': 'über Fibulaköpfchen',
+  };
+  const kurz = (name) => KURZ[name] || name;
+
+  function lies(id) {
+    const el = $(id);
+    if (!el || el.value.trim() === '') return null;
+    const v = parseFloat(el.value.replace(',', '.'));
+    return Number.isNaN(v) ? null : v;
+  }
+
+  const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
+
+  // ---------- Auswahl der untersuchten Nerven ----------
+
+  // gruppen: [{ titel, bloecke: [{ id, name }] }]; je Block gibt es ein Kästchen für rechts und links.
+  // Die Auswahl wird im Browser gemerkt (nur auf diesem Gerät).
+  function baueAuswahl(container, gruppen, speicherName, beiAenderung) {
+    $(container).innerHTML = gruppen.map((g) => `<div class="auswahl-gruppe"><strong>${g.titel}</strong>
+      <div class="auswahl">${g.bloecke.flatMap((b) => SEITEN.map(([s, seite]) =>
+        `<label><input type="checkbox" id="w-${b.id}-${s}" data-auswahl="${b.id}-${s}"> ${seite} ${b.name}</label>`)).join('')}</div></div>`).join('');
+    let gemerkt = [];
+    try { gemerkt = JSON.parse(localStorage.getItem(speicherName) || '[]'); } catch (e) { gemerkt = []; }
+    gemerkt.forEach((k) => { const el = document.querySelector(`[data-auswahl="${k}"]`); if (el) el.checked = true; });
+    $(container).addEventListener('change', () => {
+      const aktiv = [...document.querySelectorAll('[data-auswahl]')].filter((el) => el.checked).map((el) => el.dataset.auswahl);
+      try { localStorage.setItem(speicherName, JSON.stringify(aktiv)); } catch (e) { /* ohne Speicher weiter */ }
+      zeigeBloecke();
+      beiAenderung();
+    });
+  }
+
+  function aktiv(blockId, seite) {
+    const el = $(`w-${blockId}-${seite}`);
+    return !!el && el.checked;
+  }
+
+  function zeigeBloecke() {
+    document.querySelectorAll('[data-block]').forEach((el) => { el.hidden = !aktiv(el.dataset.block, el.dataset.seite); });
+    document.querySelectorAll('[data-leer]').forEach((el) => {
+      el.hidden = !!document.querySelector(`[data-bereich="${el.dataset.leer}"] [data-block]:not([hidden])`);
+    });
+  }
+
+  // ---------- Tabellen ----------
+
+  // Block für Nerv und Seite mit Überschrift wie in der Gerätesoftware ("Rechts Motorisch Medianus")
+  function block(blockId, seite, titel, inhalt) {
+    const s = SEITEN.find(([k]) => k === seite)[1];
+    return `<div class="block" data-block="${blockId}" data-seite="${seite}" hidden><h3>${s} ${titel}</h3>${inhalt}</div>`;
+  }
+
+  // Gebiete: Zeilen = Stimulationsorte, Spalten = Messgrößen; Normwerte in der letzten Zeile
+  function gebiete(praefix, zeilen, spalten, normId) {
+    const kopf = `<tr><th>Gebiete</th>${spalten.map((s) => `<th>${s.label}</th>`).join('')}</tr>`;
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td>${spalten.map((s) =>
+      `<td>${feld(`${praefix}-${z.id}-${s.key}`)}</td>`).join('')}</tr>`).join('');
+    const norm = normId ? `<tr class="normzeile"><td>Norm</td>${spalten.map((s) => `<td class="norm" id="${normId}-${s.key}"></td>`).join('')}</tr>` : '';
+    return `<table>${kopf}${rumpf}${norm}</table>`;
+  }
+
+  // Segmente: Distanz und NLG; ohne eingetragene NLG wird sie aus Distanz und Latenzen berechnet
+  function segmente(praefix, zeilen, normId, mitNlg = true) {
+    const kopf = `<tr><th>Segmente</th><th>Dist [mm]</th>${mitNlg ? '<th>NLG [m/s]</th><th>Norm</th>' : ''}</tr>`;
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-dist`)}</td>${mitNlg
+      ? `<td>${feld(`${praefix}-${z.id}-nlg`)}</td><td class="norm" id="${normId}-${z.id}"></td>` : ''}</tr>`).join('');
+    return `<table>${kopf}${rumpf}</table>`;
+  }
+
+  // NLG eines Segments: eingetragen, sonst Distanz / Latenzdifferenz (Vorschlag im Feld)
+  function nlg(praefix, seg) {
+    const el = $(`${praefix}-${seg.id}-nlg`);
+    const dist = lies(`${praefix}-${seg.id}-dist`);
+    const a = lies(`${praefix}-${seg.von}-lat`);
+    const b = lies(`${praefix}-${seg.bis}-lat`);
+    const berechnet = dist !== null && a !== null && b !== null && b > a ? Math.round((dist / (b - a)) * 10) / 10 : null;
+    if (el) el.placeholder = berechnet !== null ? String(berechnet).replace('.', ',') : '';
+    const eingetragen = lies(`${praefix}-${seg.id}-nlg`);
+    return eingetragen !== null ? eingetragen : berechnet;
+  }
+
+  function setze(id, text) { const el = $(id); if (el) el.textContent = text; }
+
+  function leeren() {
+    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; el.placeholder = ''; });
+    document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
+  }
+
+  return { SEITEN, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
+})();
 
 </script>
   <script>
@@ -571,16 +687,15 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
 </script>
   <script>
     const $ = (id) => document.getElementById(id);
+    const O = OBERFLAECHE;
     const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 2 });
-    const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
-    const zeile = (label, praefix, key, normId) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`${praefix}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="${normId || ''}"></td></tr>`;
-
-    function lies(id) {
-      const el = $(id);
-      if (!el || el.value.trim() === '') return null;
-      const v = parseFloat(el.value.replace(',', '.'));
-      return Number.isNaN(v) ? null : v;
-    }
+    const SPALTEN = [{ key: 'lat', label: 'Lat [ms]' }, { key: 'amp', label: 'Amp [mV]' }];
+    // "N. axillaris" -> "Axillaris", wie in der Gerätesoftware
+    const name = (n) => { const k = n.replace(/^N\. /, ''); return k.charAt(0).toUpperCase() + k.slice(1); };
+    const motorName = (def) => `${name(def.name)} (${def.muskel})`;
+    // Stimulationsort: Erb'scher Punkt bzw. Leiste für die proximalen Nerven, sonst distal
+    const DISTAL = { medianus: 'Handgel', ulnaris: 'Handgel', peroneus: 'Fußrist', tibialis: 'Innenknöchel' };
+    const ort = (def) => (def.proximal ? (def.plexus === 'brachialis' ? 'Plexus' : 'Leiste') : DISTAL[def.distal]);
 
     const zuordnung = (def) => (def.plexus === 'brachialis'
       ? `${def.trunci.map((t) => PLEXUS.TRUNCI[t]).join(' / ')}${def.faszikel.length ? ', ' + def.faszikel.map((f) => PLEXUS.FASZIKEL[f]).join(' / ') : ''}`
@@ -589,61 +704,77 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
     // ---------- Formular aufbauen ----------
 
     function baue() {
-      ['brachialis', 'lumbosacralis'].forEach((plexus) => {
-        $(`motorisch-${plexus}`).innerHTML = Object.entries(PLEXUS.MOTORISCH).filter(([, d]) => d.plexus === plexus).map(([key, def]) => {
-          const p = `m-${key}`;
-          const zeilen = def.proximal
-            ? zeile('Distanz (cm)', p, 'distanz') + zeile('Leitzeit (ms)', p, 'latenz', `n-${key}-latenz`) + zeile('MSAP (mV)', p, 'amp', `n-${key}-amp`)
-            : zeile('DML (ms)', p, 'latenz', `n-${key}-latenz`) + zeile('MSAP (mV)', p, 'amp', `n-${key}-amp`);
-          return `<div><h3>${def.name} <span class="klein">(${def.muskel})</span></h3><p class="klein">${zuordnung(def)}</p><table>
-            <tr><th>${def.proximal ? 'Stimulation Erb bzw. Leiste' : 'Stimulation distal'}</th><th>re.</th><th>li.</th><th>Norm</th></tr>${zeilen}</table></div>`;
-        }).join('');
-        $(`sensibel-${plexus}`).innerHTML = Object.entries(PLEXUS.SENSIBEL).filter(([, d]) => d.plexus === plexus).map(([key, def]) => {
-          const p = `s-${key}`;
-          const zeilen = zeile('SNAP (µV)', p, 'amp', `ns-${key}-amp`) + (def.norm ? zeile('NLG (m/s)', p, 'nlg', `ns-${key}-nlg`) : '');
-          return `<div><h3>${def.name}</h3><p class="klein">${zuordnung(def)}</p><table>
-            <tr><th></th><th>re.</th><th>li.</th><th>Norm</th></tr>${zeilen}</table></div>`;
-        }).join('');
+      const gruppe = (titel, liste, praefix, beschriftung) => ({
+        titel, bloecke: liste.map(([k, d]) => ({ id: `${praefix}-${k}`, name: beschriftung(d) })),
       });
+      const motor = (plexus) => Object.entries(PLEXUS.MOTORISCH).filter(([, d]) => d.plexus === plexus);
+      const sens = (plexus) => Object.entries(PLEXUS.SENSIBEL).filter(([, d]) => d.plexus === plexus);
+      O.baueAuswahl('auswahl', [
+        gruppe('Plexus brachialis motorisch', motor('brachialis'), 'm', motorName),
+        gruppe('Plexus brachialis sensibel', sens('brachialis'), 's', (d) => name(d.name)),
+        gruppe('Plexus lumbosacralis motorisch', motor('lumbosacralis'), 'm', motorName),
+        gruppe('Plexus lumbosacralis sensibel', sens('lumbosacralis'), 's', (d) => name(d.name)),
+      ], 'plexus-auswahl', aktualisiere);
+
+      ['brachialis', 'lumbosacralis'].forEach((plexus) => {
+        $(`motorisch-${plexus}`).innerHTML = motor(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
+          const p = `m-${k}-${s}`;
+          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`)
+            + (def.proximal ? O.segmente(p, [{ id: 'x', label: `${ort(def)}-${def.muskel.replace('M. ', '')}` }], null, false) : '');
+          return O.block(`m-${k}`, s, `Motorisch ${motorName(def)}`, `<p class="klein">${zuordnung(def)}</p>${tabelle}`);
+        })).join('');
+        $(`sensibel-${plexus}`).innerHTML = sens(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
+          const p = `s-${k}-${s}`;
+          const spalten = [{ key: 'amp', label: 'Amp [µV]' }, ...(def.norm ? [{ key: 'nlg', label: 'NLG [m/s]' }] : [])];
+          return O.block(`s-${k}`, s, `Sensibel ${name(def.name)}`,
+            `<p class="klein">${zuordnung(def)}</p>${O.gebiete(p, [{ id: 'w', label: 'Messung' }], spalten, `n-${p}`)}`);
+        })).join('');
+      });
+      O.zeigeBloecke();
     }
 
-    // ---------- Normspalte ----------
+    // ---------- Normwerte ----------
 
     function zeigeNormen(eingabe) {
-      const setze = (id, text) => { if ($(id)) $(id).textContent = text; };
-      Object.entries(PLEXUS.MOTORISCH).forEach(([key, def]) => {
+      Object.entries(PLEXUS.MOTORISCH).forEach(([k, def]) => O.SEITEN.forEach(([s]) => {
+        const p = `m-${k}-${s}`;
         if (def.proximal) {
           const n = NORMWERTE.proximal[def.proximal];
-          const distanzen = ['re', 'li'].map((s) => eingabe.motorisch[`${key}-${s}`].distanz).filter((x) => x !== null);
-          const uln = PLEXUS.normLeitzeit(n.leitzeit, distanzen.length ? distanzen[0] : null);
-          setze(`n-${key}-latenz`, uln.wert !== null ? `≤ ${zahl(uln.wert)} ms` : 'Distanz eingeben');
-          setze(`n-${key}-amp`, n.amp !== null ? `≥ ${zahl(n.amp)} mV` : 'Seitenvergleich');
+          const d = eingabe.motorisch[`${k}-${s}`];
+          const uln = PLEXUS.normLeitzeit(n.leitzeit, d ? d.distanz : null);
+          O.setze(`n-${p}-lat`, uln.wert !== null ? `≤ ${zahl(uln.wert)} ms` : 'Dist eingeben');
+          O.setze(`n-${p}-amp`, n.amp !== null ? `≥ ${zahl(n.amp)} mV` : 'Seitenvergleich');
         } else {
           const n = NORMWERTE.motorisch[def.distal];
-          setze(`n-${key}-latenz`, `≤ ${zahl(n.dml)} ms`);
-          setze(`n-${key}-amp`, `≥ ${zahl(n.amp)} mV`);
+          O.setze(`n-${p}-lat`, `≤ ${zahl(n.dml)} ms`);
+          O.setze(`n-${p}-amp`, `≥ ${zahl(n.amp)} mV`);
         }
-      });
-      Object.entries(PLEXUS.SENSIBEL).forEach(([key, def]) => {
-        if (!def.norm) { setze(`ns-${key}-amp`, 'Seitenvergleich'); return; }
+      }));
+      Object.entries(PLEXUS.SENSIBEL).forEach(([k, def]) => O.SEITEN.forEach(([s]) => {
+        const p = `s-${k}-${s}`;
+        if (!def.norm) { O.setze(`n-${p}-amp`, 'Seitenvergleich'); return; }
         const n = NORMWERTE.sensibel[def.norm];
-        setze(`ns-${key}-amp`, `≥ ${zahl(n.amp)} µV`);
+        O.setze(`n-${p}-amp`, `≥ ${zahl(n.amp)} µV`);
         const nlg = Array.isArray(n.nlg) && eingabe.alter === null ? null : PLEXUS.normNlg(n, eingabe.alter);
-        setze(`ns-${key}-nlg`, nlg !== null ? `≥ ${zahl(nlg)} m/s` : 'Alter eingeben');
-      });
+        O.setze(`n-${p}-nlg`, nlg !== null ? `≥ ${zahl(nlg)} m/s` : 'Alter eingeben');
+      }));
     }
 
-    // ---------- Eingabe lesen ----------
+    // ---------- Eingabe lesen (nur ausgewählte Nerven) ----------
 
     function leseEingabe() {
-      const e = { alter: lies('alter'), motorisch: {}, sensibel: {} };
-      Object.keys(PLEXUS.MOTORISCH).forEach((key) => ['re', 'li'].forEach((s) => {
-        const p = `m-${key}-${s}`;
-        e.motorisch[`${key}-${s}`] = { distanz: lies(`${p}-distanz`), latenz: lies(`${p}-latenz`), amp: lies(`${p}-amp`) };
+      const e = { alter: O.lies('alter'), motorisch: {}, sensibel: {} };
+      Object.keys(PLEXUS.MOTORISCH).forEach((k) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`m-${k}`, s)) return;
+        const p = `m-${k}-${s}`;
+        const mm = O.lies(`${p}-x-dist`);
+        // Die Normtabelle der Leitzeit rechnet in cm
+        e.motorisch[`${k}-${s}`] = { distanz: mm !== null ? mm / 10 : null, latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
       }));
-      Object.keys(PLEXUS.SENSIBEL).forEach((key) => ['re', 'li'].forEach((s) => {
-        const p = `s-${key}-${s}`;
-        e.sensibel[`${key}-${s}`] = { amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
+      Object.keys(PLEXUS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`s-${k}`, s)) return;
+        const p = `s-${k}-${s}`;
+        e.sensibel[`${k}-${s}`] = { amp: O.lies(`${p}-w-amp`), nlg: O.lies(`${p}-w-nlg`) };
       }));
       return e;
     }
@@ -690,7 +821,7 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
       navigator.clipboard.writeText($('ausgabe').value).catch(() => { $('ausgabe').select(); document.execCommand('copy'); });
     });
     $('leeren').addEventListener('click', () => {
-      document.querySelectorAll('input[type=text]').forEach((el) => (el.value = ''));
+      O.leeren();
       aktualisiere();
     });
     aktualisiere();

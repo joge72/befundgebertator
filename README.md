@@ -6,7 +6,8 @@ Startseite mit Auswahl des Untersuchungsprogramms: https://joge72.github.io/befu
 (auf dem iPhone in Safari „Teilen“ → „Zum Home-Bildschirm“, danach auch offline nutzbar;
 `manifest.json`, `sw.js` und `icon-*.png` gehören zur Web-App).
 
-Gemeinsame Normwerte aller Programme: [normwerte.js](normwerte.js). Die Einzeldateien für den PC
+Gemeinsame Normwerte aller Programme: [normwerte.js](normwerte.js), gemeinsame Bausteine der Eingabe
+(Nervenauswahl, Tabellen wie in der Gerätesoftware): [oberflaeche.js](oberflaeche.js). Die Einzeldateien für den PC
 ohne Internet erzeugt `python3 einzeldateien.py`.
 
 Normwerte der proximalen motorischen Nerven: [Normwerte.md](Normwerte.md) · Offene Punkte: [OFFENE_PUNKTE.md](OFFENE_PUNKTE.md)
