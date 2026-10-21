@@ -130,7 +130,7 @@ const CIDP = (function () {
   const LEITLINIE = 'EAN/PNS-Leitlinie 2021 nach van den Bergh et al.';
 
   const T = {
-    ueberschrift: (filter) => `CIDP-Programm (Filter ${filter} Hz – 10 kHz):`,
+    ueberschrift: 'CIDP-Programm:',
 
     // Motorische Neurographie, ein Satz je Nerv und Seite
     // Auffällige Nerven: Zahlen nur bei erfülltem Kriterium, sonst nur die Art der Veränderung
@@ -632,7 +632,7 @@ const CIDP = (function () {
   // ---------- Befundtext ----------
 
   function befundtext(eingabe, erg) {
-    const z = [T.ueberschrift(eingabe.filter)];
+    const z = [T.ueberschrift];
     let variante = 0;
     const abschnitt = (titel, auffaellig, normal) => {
       if (!auffaellig.length && !normal.length) return;

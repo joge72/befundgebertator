@@ -51,14 +51,6 @@
   <div class="zeile">
     <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
     <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
-    <label>Untere Filtergrenze
-      <select id="filter">
-        <option value="2">2 Hz</option>
-        <option value="5">5 Hz</option>
-        <option value="10">10 Hz</option>
-        <option value="20">20 Hz</option>
-      </select>
-    </label>
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
@@ -344,7 +336,7 @@ const CIDP = (function () {
   const LEITLINIE = 'EAN/PNS-Leitlinie 2021 nach van den Bergh et al.';
 
   const T = {
-    ueberschrift: (filter) => `CIDP-Programm (Filter ${filter} Hz – 10 kHz):`,
+    ueberschrift: 'CIDP-Programm:',
 
     // Motorische Neurographie, ein Satz je Nerv und Seite
     // Auffällige Nerven: Zahlen nur bei erfülltem Kriterium, sonst nur die Art der Veränderung
@@ -846,7 +838,7 @@ const CIDP = (function () {
   // ---------- Befundtext ----------
 
   function befundtext(eingabe, erg) {
-    const z = [T.ueberschrift(eingabe.filter)];
+    const z = [T.ueberschrift];
     let variante = 0;
     const abschnitt = (titel, auffaellig, normal) => {
       if (!auffaellig.length && !normal.length) return;
@@ -971,7 +963,8 @@ if (typeof module !== 'undefined') module.exports = CIDP;
 
     function leseEingabe() {
       const e = {
-        alter: lies('alter'), groesse: lies('groesse'), filter: parseInt($('filter').value, 10),
+        // Untere Filtergrenze im Labor fest 20 Hz (Grenzwerte der distalen CMAP-Dauer, Tab. 2g)
+        alter: lies('alter'), groesse: lies('groesse'), filter: 20,
         kts: $('kts').checked,
         motorisch: {}, sensibel: {},
         phaenotyp: '', unterstuetzend: {},
