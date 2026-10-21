@@ -9,7 +9,7 @@ Startseite mit Auswahl des Untersuchungsprogramms: https://joge72.github.io/befu
 Gemeinsame Normwerte aller Programme: [normwerte.js](normwerte.js). Die Einzeldateien für den PC
 ohne Internet erzeugt `python3 einzeldateien.py`.
 
-Normwerte der proximalen motorischen Nerven: [Normwerte.md](Normwerte.md)
+Normwerte der proximalen motorischen Nerven: [Normwerte.md](Normwerte.md) · Offene Punkte: [OFFENE_PUNKTE.md](OFFENE_PUNKTE.md)
 
 ## Bereiche
 
