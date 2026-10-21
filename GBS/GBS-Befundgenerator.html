@@ -313,6 +313,7 @@ const GBS = (function () {
     amsan: 'AMSAN, motorisch-sensibel',
     sensAuffaellig: (n, nerven) => `Sensible Leitungsauffälligkeiten in ${n} Nerv${n > 1 ? 'en' : ''} (${nerven.join(', ')}).`,
     sensUnauffaellig: 'Die sensible Neurographie ist in den untersuchten Nerven unauffällig.',
+    subtypHinweis: `Hinweis: Eine elektrophysiologische Subtypisierung wird gemäß ${LEITLINIE} im klinischen Alltag nicht empfohlen, da kein Konsens besteht und sie derzeit keinen Einfluss auf die Therapie hat.`,
     stuetzend: `Gemäß ${LEITLINIE} stützen folgende Befunde mit hoher Spezifität die Diagnose eines GBS:`,
     stuetzendSural: 'Sural-Sparing-Muster',
     stuetzendDauer: (nerven) => `verlängerte distale CMAP-Dauer > ${zahl(DAUER_GRENZE)} ms (${nerven.join(', ')})`,
@@ -646,6 +647,7 @@ const GBS = (function () {
       z.push(path.length ? T.sensAuffaellig(path.length, path.map((s) => s.name)) : T.sensUnauffaellig);
     }
     if (erg.stuetzend.length) z.push(T.stuetzend, ...erg.stuetzend.map((x) => `- ${x}`));
+    if (['aidp', 'axonal', 'unerregbar'].includes(k.typ)) z.push('', T.subtypHinweis);
     return z.join('\n');
   }
 
