@@ -1,12 +1,13 @@
 // Service Worker: hält die App für die Offline-Nutzung im Zwischenspeicher.
 // Mit Internet wird immer die neueste Version geladen, ohne Internet die gespeicherte.
 // Bei Änderungen an der Dateiliste VERSION erhöhen.
-const VERSION = 'befunde-v2';
+const VERSION = 'befunde-v3';
 const DATEIEN = [
   './', './index.html', './manifest.json', './icon-180.png', './icon-512.png',
   './normwerte.js',
   './CIDP/', './CIDP/index.html', './CIDP/logik.js',
   './GBS/', './GBS/index.html', './GBS/logik.js',
+  './Plexus/', './Plexus/index.html', './Plexus/logik.js',
 ];
 
 self.addEventListener('install', (e) => {

@@ -7,7 +7,7 @@ from pathlib import Path
 wurzel = Path(__file__).parent
 normwerte = (wurzel / 'normwerte.js').read_text(encoding='utf-8')
 
-for programm in ('CIDP', 'GBS'):
+for programm in ('CIDP', 'GBS', 'Plexus'):
     ordner = wurzel / programm
     html = (ordner / 'index.html').read_text(encoding='utf-8')
     html = html.replace('<script src="../normwerte.js"></script>', f'<script>\n{normwerte}\n</script>')

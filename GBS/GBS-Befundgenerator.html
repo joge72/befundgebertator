@@ -184,6 +184,20 @@ const NORMWERTE = {
     // Blatt 7/7
     radialis: { amp: 16.0, nlg: 55.0 },
     suralis:  { amp: 10.0, nlg: 40.6 },
+    cutaneusAntebrachiiLateralis: { amp: 12.0, nlg: 57.0 },
+    cutaneusFemorisLateralis: { amp: 4.0, nlg: 43.0 },
+    peronaeusSuperficialis: { amp: 10.0, nlg: 40.0 },
+  },
+  // Blatt 5/7 und Ergänzung: Leitzeit nach Stimulation am Erb'schen Punkt (bzw. N. femoralis
+  // in der Leiste) als obere Normgrenze je Distanz (cm), SPA als untere Normgrenze (mV).
+  // Zwischen den Distanzen wird linear interpoliert.
+  proximal: {
+    suprascapularisSupraspinatus: { leitzeit: [{ distanz: 8.5, wert: 3.3 }, { distanz: 10.5, wert: 3.4 }], amp: null },
+    suprascapularisInfraspinatus: { leitzeit: [{ distanz: 14.0, wert: 4.4 }, { distanz: 17.0, wert: 4.4 }], amp: null },
+    axillaris: { leitzeit: [{ distanz: 15.5, wert: 5.3 }], amp: 10 },
+    musculocutaneus: { leitzeit: [{ distanz: 20.0, wert: 5.8 }, { distanz: 24.0, wert: 5.9 }, { distanz: 28.0, wert: 6.0 }], amp: 5 },
+    radialisTriceps: { leitzeit: [{ distanz: 21.5, wert: 5.5 }, { distanz: 26.5, wert: 5.9 }, { distanz: 31.5, wert: 6.3 }], amp: 8 },
+    femoralis: { leitzeit: [{ distanz: 14.0, wert: 4.6 }, { distanz: 30.0, wert: 7.2 }], amp: null },
   },
 };
 
