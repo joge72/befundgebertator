@@ -22,12 +22,9 @@
     th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; font-size: 0.92em; }
     th { background: #edf2f7; }
     td.norm { color: #555; white-space: nowrap; }
-    tr.ort td { background: #fafafa; }
-    tr.ort td:first-child { padding-left: 18px; }
     input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
     select { font-size: 16px; }
-    .nerven { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
-    .nerven > div, #matrix { min-width: 0; overflow-x: auto; }
+    #matrix { min-width: 0; overflow-x: auto; }
     .ja { color: #2f855a; font-weight: bold; text-align: center; }
     .nein { color: #bbb; text-align: center; }
     .pruefhinweise { border-left: 4px solid #2b6cb0; background: #ebf4ff; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
@@ -40,6 +37,14 @@
       input[type=text] { width: 54px; }
       th, td { padding: 3px 4px; }
     }
+    .auswahl-gruppe { margin: 6px 0 10px; }
+    .auswahl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }
+    .auswahl label { white-space: nowrap; }
+    .bloecke { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
+    .block { min-width: 0; overflow-x: auto; }
+    .block table { margin-bottom: 6px; }
+    tr.normzeile td { background: #f7fafc; }
+    .leer { color: #555; font-size: 0.92em; }
   </style>
 </head>
 <body>
@@ -62,13 +67,22 @@
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
+  <h2>Untersuchte Nerven</h2>
+  <div id="auswahl"></div>
+
   <h2>Motorische Neurographie</h2>
   <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel, Dauer vom Beginn des ersten bis zum Ende des letzten negativen Gipfels.
-    NLG-Felder gelten für das Segment bis zum jeweiligen Stimulationsort.</p>
-  <div class="nerven" id="motorisch"></div>
+    Ohne eingetragene NLG wird sie aus Distanz und Latenzen berechnet (grau vorgeschlagen).</p>
+  <div class="bloecke" id="motorisch" data-bereich="motorisch"></div>
+  <p class="leer" data-leer="motorisch">Oben unter „Untersuchte Nerven“ die motorischen Nerven auswählen.</p>
+
+  <h2>F-Antwort</h2>
+  <div id="fwellen" data-bereich="fwellen"></div>
+  <p class="leer" data-leer="fwellen">Erscheint für die ausgewählten motorischen Nerven.</p>
 
   <h2>Sensible Neurographie</h2>
-  <div class="nerven" id="sensibel"></div>
+  <div class="bloecke" id="sensibel" data-bereich="sensibel"></div>
+  <p class="leer" data-leer="sensibel">Oben unter „Untersuchte Nerven“ die sensiblen Nerven auswählen.</p>
 
   <h2>Motorische Kriterien je Nerv</h2>
   <div id="matrix"></div>
@@ -209,6 +223,110 @@ const NORMWERTE = {
 };
 
 if (typeof module !== 'undefined') module.exports = NORMWERTE;
+
+</script>
+  <script>
+// Gemeinsame Bausteine der Eingabemasken: Auswahl der untersuchten Nerven und
+// Tabellen im Aufbau der Gerätesoftware (Gebiete und Segmente je Nerv und Seite).
+
+const OBERFLAECHE = (function () {
+  const $ = (id) => document.getElementById(id);
+  const SEITEN = [['re', 'Rechts'], ['li', 'Links']];
+
+  // Bezeichnungen der Stimulationsorte wie in der Gerätesoftware
+  const KURZ = {
+    Handgelenk: 'Handgel', Ellenbogen: 'Ellbogen', 'unterhalb Ellenbogen': 'unter Ellbogen',
+    'oberhalb Ellenbogen': 'über Ellbogen', Erb: 'Plexus', 'unterhalb Fibulaköpfchen': 'unter Fibulaköpfchen',
+    'oberhalb Fibulaköpfchen': 'über Fibulaköpfchen',
+  };
+  const kurz = (name) => KURZ[name] || name;
+
+  function lies(id) {
+    const el = $(id);
+    if (!el || el.value.trim() === '') return null;
+    const v = parseFloat(el.value.replace(',', '.'));
+    return Number.isNaN(v) ? null : v;
+  }
+
+  const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
+
+  // ---------- Auswahl der untersuchten Nerven ----------
+
+  // gruppen: [{ titel, bloecke: [{ id, name }] }]; je Block gibt es ein Kästchen für rechts und links.
+  // Die Auswahl wird im Browser gemerkt (nur auf diesem Gerät).
+  function baueAuswahl(container, gruppen, speicherName, beiAenderung) {
+    $(container).innerHTML = gruppen.map((g) => `<div class="auswahl-gruppe"><strong>${g.titel}</strong>
+      <div class="auswahl">${g.bloecke.flatMap((b) => SEITEN.map(([s, seite]) =>
+        `<label><input type="checkbox" id="w-${b.id}-${s}" data-auswahl="${b.id}-${s}"> ${seite} ${b.name}</label>`)).join('')}</div></div>`).join('');
+    let gemerkt = [];
+    try { gemerkt = JSON.parse(localStorage.getItem(speicherName) || '[]'); } catch (e) { gemerkt = []; }
+    gemerkt.forEach((k) => { const el = document.querySelector(`[data-auswahl="${k}"]`); if (el) el.checked = true; });
+    $(container).addEventListener('change', () => {
+      const aktiv = [...document.querySelectorAll('[data-auswahl]')].filter((el) => el.checked).map((el) => el.dataset.auswahl);
+      try { localStorage.setItem(speicherName, JSON.stringify(aktiv)); } catch (e) { /* ohne Speicher weiter */ }
+      zeigeBloecke();
+      beiAenderung();
+    });
+  }
+
+  function aktiv(blockId, seite) {
+    const el = $(`w-${blockId}-${seite}`);
+    return !!el && el.checked;
+  }
+
+  function zeigeBloecke() {
+    document.querySelectorAll('[data-block]').forEach((el) => { el.hidden = !aktiv(el.dataset.block, el.dataset.seite); });
+    document.querySelectorAll('[data-leer]').forEach((el) => {
+      el.hidden = !!document.querySelector(`[data-bereich="${el.dataset.leer}"] [data-block]:not([hidden])`);
+    });
+  }
+
+  // ---------- Tabellen ----------
+
+  // Block für Nerv und Seite mit Überschrift wie in der Gerätesoftware ("Rechts Motorisch Medianus")
+  function block(blockId, seite, titel, inhalt) {
+    const s = SEITEN.find(([k]) => k === seite)[1];
+    return `<div class="block" data-block="${blockId}" data-seite="${seite}" hidden><h3>${s} ${titel}</h3>${inhalt}</div>`;
+  }
+
+  // Gebiete: Zeilen = Stimulationsorte, Spalten = Messgrößen; Normwerte in der letzten Zeile
+  function gebiete(praefix, zeilen, spalten, normId) {
+    const kopf = `<tr><th>Gebiete</th>${spalten.map((s) => `<th>${s.label}</th>`).join('')}</tr>`;
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td>${spalten.map((s) =>
+      `<td>${feld(`${praefix}-${z.id}-${s.key}`)}</td>`).join('')}</tr>`).join('');
+    const norm = normId ? `<tr class="normzeile"><td>Norm</td>${spalten.map((s) => `<td class="norm" id="${normId}-${s.key}"></td>`).join('')}</tr>` : '';
+    return `<table>${kopf}${rumpf}${norm}</table>`;
+  }
+
+  // Segmente: Distanz und NLG; ohne eingetragene NLG wird sie aus Distanz und Latenzen berechnet
+  function segmente(praefix, zeilen, normId, mitNlg = true) {
+    const kopf = `<tr><th>Segmente</th><th>Dist [mm]</th>${mitNlg ? '<th>NLG [m/s]</th><th>Norm</th>' : ''}</tr>`;
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-dist`)}</td>${mitNlg
+      ? `<td>${feld(`${praefix}-${z.id}-nlg`)}</td><td class="norm" id="${normId}-${z.id}"></td>` : ''}</tr>`).join('');
+    return `<table>${kopf}${rumpf}</table>`;
+  }
+
+  // NLG eines Segments: eingetragen, sonst Distanz / Latenzdifferenz (Vorschlag im Feld)
+  function nlg(praefix, seg) {
+    const el = $(`${praefix}-${seg.id}-nlg`);
+    const dist = lies(`${praefix}-${seg.id}-dist`);
+    const a = lies(`${praefix}-${seg.von}-lat`);
+    const b = lies(`${praefix}-${seg.bis}-lat`);
+    const berechnet = dist !== null && a !== null && b !== null && b > a ? Math.round((dist / (b - a)) * 10) / 10 : null;
+    if (el) el.placeholder = berechnet !== null ? String(berechnet).replace('.', ',') : '';
+    const eingetragen = lies(`${praefix}-${seg.id}-nlg`);
+    return eingetragen !== null ? eingetragen : berechnet;
+  }
+
+  function setze(id, text) { const el = $(id); if (el) el.textContent = text; }
+
+  function leeren() {
+    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; el.placeholder = ''; });
+    document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
+  }
+
+  return { SEITEN, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
+})();
 
 </script>
   <script>
@@ -903,96 +1021,99 @@ if (typeof module !== 'undefined') module.exports = CIDP;
 </script>
   <script>
     const $ = (id) => document.getElementById(id);
+    const O = OBERFLAECHE;
     const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 1 });
-    const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
+    const SPALTEN = [{ key: 'lat', label: 'Lat [ms]' }, { key: 'amp', label: 'Amp [mV]' }, { key: 'dur', label: 'Dur [ms]' }];
+    const SENS_SPALTEN = [{ key: 'amp', label: 'Amp [µV]' }, { key: 'nlg', label: 'NLG [m/s]' }];
+    // "N. medianus" -> "Medianus", wie in der Gerätesoftware
+    const name = (def) => { const n = def.name.replace(/^N\. /, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
 
-    function lies(id) {
-      const el = $(id);
-      if (!el || el.value.trim() === '') return null;
-      const v = parseFloat(el.value.replace(',', '.'));
-      return Number.isNaN(v) ? null : v;
+    // Stimulationsorte (distal zuerst) und die Segmente dazwischen
+    function orte(def) {
+      const zeilen = [{ id: 'd', label: O.kurz(def.distal) }, ...def.orte.map((o) => ({ id: o.id, label: O.kurz(o.name) }))];
+      const segs = def.orte.map((o, i) => ({ id: o.id, von: zeilen[i].id, bis: o.id, label: `${O.kurz(o.name)}-${zeilen[i].label}` }));
+      return { zeilen, segs };
     }
 
     // ---------- Formular aufbauen ----------
 
-    function baueMotorisch() {
-      $('motorisch').innerHTML = Object.entries(CIDP.MOTORISCH).map(([nerv, def]) => {
-        const z = (label, key, normId) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`m-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="${normId || ''}"></td></tr>`;
-        let html = `<div><h3>${def.name} <span class="klein">(${def.muskel})</span></h3><table>
-          <tr><th>Stimulation ${def.distal}</th><th>re.</th><th>li.</th><th>Norm</th></tr>
-          ${z('DML (ms)', 'dml', `n-${nerv}-dml`)}
-          ${z('CMAP (mV)', 'amp', `n-${nerv}-amp`)}
-          ${z('CMAP-Dauer (ms)', 'dauer', `n-${nerv}-dauer`)}
-          ${z('F-Wellen-Latenz (ms)', 'fLatenz', `n-${nerv}-f`)}
-          <tr><td>keine F-Wellen</td>${['re', 'li'].map((s) => `<td><input type="checkbox" id="m-${nerv}-${s}-fFehlt"></td>`).join('')}<td></td></tr>`;
-        def.orte.forEach((ort) => {
-          html += `<tr><th colspan="4">Stimulation ${ort.name}${ort.ausgeschlossen ? ' <span class="klein">(Block/NLG über diesem Segment zählen nicht)</span>' : ''}</th></tr>`;
-          const zo = (label, key, normId) => `<tr class="ort"><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`m-${nerv}-${s}-${ort.id}-${key}`)}</td>`).join('')}<td class="norm" id="${normId || ''}"></td></tr>`;
-          html += zo('CMAP (mV)', 'amp') + zo('CMAP-Dauer (ms)', 'dauer') + zo(`NLG ${ort.segment} (m/s)`, 'nlg', `n-${nerv}-${ort.id}-nlg`);
-        });
-        return html + '</table></div>';
-      }).join('');
+    function baue() {
+      O.baueAuswahl('auswahl', [
+        { titel: 'NLG motorisch', bloecke: Object.entries(CIDP.MOTORISCH).map(([k, d]) => ({ id: `m-${k}`, name: name(d) })) },
+        { titel: 'NLG sensibel', bloecke: Object.entries(CIDP.SENSIBEL).map(([k, d]) => ({ id: `s-${k}`, name: name(d) })) },
+      ], 'cidp-auswahl', aktualisiere);
+
+      $('motorisch').innerHTML = Object.entries(CIDP.MOTORISCH).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
+        const p = `m-${k}-${s}`;
+        const { zeilen, segs } = orte(def);
+        return O.block(`m-${k}`, s, `Motorisch ${name(def)} <span class="klein">(${def.muskel})</span>`,
+          O.gebiete(p, zeilen, SPALTEN, `n-${p}`) + O.segmente(p, segs, `n-${p}-nlg`));
+      })).join('');
+
+      $('fwellen').innerHTML = `<table><tr><th></th><th>F-Lat [ms]</th><th>keine F-Wellen</th><th>Norm</th></tr>${
+        O.SEITEN.flatMap(([s, seite]) => Object.entries(CIDP.MOTORISCH).map(([k, def]) =>
+          `<tr data-block="m-${k}" data-seite="${s}" hidden><td>${seite} ${name(def)}</td><td>${O.feld(`f-${k}-${s}-lat`)}</td>
+            <td><input type="checkbox" id="f-${k}-${s}-fehlt"></td><td class="norm" id="n-f-${k}-${s}"></td></tr>`)).join('')}</table>`;
+
+      $('sensibel').innerHTML = Object.entries(CIDP.SENSIBEL).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
+        const p = `s-${k}-${s}`;
+        return O.block(`s-${k}`, s, `Sensibel ${name(def)}`, O.gebiete(p, [{ id: 'w', label: 'Messung' }], SENS_SPALTEN, `n-${p}`));
+      })).join('');
+      O.zeigeBloecke();
     }
 
-    function baueSensibel() {
-      $('sensibel').innerHTML = Object.entries(CIDP.SENSIBEL).map(([nerv, def]) => {
-        const z = (label, key) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`s-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="ns-${nerv}-${key}"></td></tr>`;
-        return `<div><h3>${def.name}</h3><table>
-          <tr><th></th><th>re.</th><th>li.</th><th>Norm</th></tr>
-          ${z('SNAP (µV)', 'amp')}${z('NLG (m/s)', 'nlg')}
-        </table></div>`;
-      }).join('');
-    }
-
-    // ---------- Normspalte ----------
+    // ---------- Normwerte ----------
 
     function zeigeNormen(eingabe) {
-      const setze = (id, text) => { if ($(id)) $(id).textContent = text; };
       const fmt = (v, vor, einheit, leer = 'keine Norm') => (v === null || v === undefined ? leer : `${vor} ${zahl(v)} ${einheit}`);
       // Altersabhängige Normen brauchen das Alter, größenabhängige die Körpergröße
       const ohne = (tabelle, wert, text) => (Array.isArray(tabelle) && wert === null ? text : null);
-      Object.entries(CIDP.MOTORISCH).forEach(([nerv, def]) => {
-        const n = NORMWERTE.motorisch[nerv];
-        setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
-        setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
-        setze(`n-${nerv}-dauer`, `≤ ${zahl(CIDP.DAUER_GRENZEN[eingabe.filter][nerv])} ms`);
-        setze(`n-${nerv}-f`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(CIDP.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
-        def.orte.forEach((ort) => setze(`n-${nerv}-${ort.id}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
-          || fmt(CIDP.normNlg(n, ort.id, eingabe.alter), '≥', 'm/s', 'keine Norm für dieses Alter')));
-      });
-      Object.keys(CIDP.SENSIBEL).forEach((nerv) => {
-        const n = NORMWERTE.sensibel[nerv];
-        setze(`ns-${nerv}-amp`, fmt(n.amp, '≥', 'µV'));
-        setze(`ns-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben') || fmt(CIDP.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
-      });
+      Object.entries(CIDP.MOTORISCH).forEach(([k, def]) => O.SEITEN.forEach(([s]) => {
+        const n = NORMWERTE.motorisch[k];
+        const p = `m-${k}-${s}`;
+        O.setze(`n-${p}-lat`, fmt(n.dml, '≤', 'ms'));
+        O.setze(`n-${p}-amp`, fmt(n.amp, '≥', 'mV'));
+        O.setze(`n-${p}-dur`, `≤ ${zahl(CIDP.DAUER_GRENZEN[eingabe.filter][k])} ms`);
+        def.orte.forEach((o) => O.setze(`n-${p}-nlg-${o.id}`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
+          || fmt(CIDP.normNlg(n, o.id, eingabe.alter), '≥', 'm/s', 'keine Norm für dieses Alter')));
+        O.setze(`n-f-${k}-${s}`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(CIDP.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
+      }));
+      Object.keys(CIDP.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
+        const n = NORMWERTE.sensibel[k];
+        O.setze(`n-s-${k}-${s}-amp`, fmt(n.amp, '≥', 'µV'));
+        O.setze(`n-s-${k}-${s}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben') || fmt(CIDP.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
+      }));
     }
 
-    // ---------- Eingabe lesen ----------
+    // ---------- Eingabe lesen (nur ausgewählte Nerven) ----------
 
     function leseEingabe() {
       const e = {
-        alter: lies('alter'), groesse: lies('groesse'), filter: parseInt($('filter').value, 10),
-        kts: $('kts').checked,
-        motorisch: {}, sensibel: {},
-        phaenotyp: '', unterstuetzend: {},
+        alter: O.lies('alter'), groesse: O.lies('groesse'), filter: parseInt($('filter').value, 10),
+        kts: $('kts').checked, motorisch: {}, sensibel: {}, phaenotyp: '', unterstuetzend: {},
       };
-      Object.entries(CIDP.MOTORISCH).forEach(([nerv, def]) => ['re', 'li'].forEach((s) => {
-        const p = `m-${nerv}-${s}`;
-        const orte = {};
-        def.orte.forEach((ort) => {
-          orte[ort.id] = { amp: lies(`${p}-${ort.id}-amp`), dauer: lies(`${p}-${ort.id}-dauer`), nlg: lies(`${p}-${ort.id}-nlg`) };
+      Object.entries(CIDP.MOTORISCH).forEach(([k, def]) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`m-${k}`, s)) return;
+        const p = `m-${k}-${s}`;
+        const { segs } = orte(def);
+        const werte = {};
+        segs.forEach((seg) => {
+          werte[seg.id] = { amp: O.lies(`${p}-${seg.id}-amp`), dauer: O.lies(`${p}-${seg.id}-dur`), nlg: O.nlg(p, seg) };
         });
-        e.motorisch[`${nerv}-${s}`] = {
-          dml: lies(`${p}-dml`), amp: lies(`${p}-amp`), dauer: lies(`${p}-dauer`),
-          fLatenz: lies(`${p}-fLatenz`), fFehlt: $(`${p}-fFehlt`).checked, orte,
+        e.motorisch[`${k}-${s}`] = {
+          dml: O.lies(`${p}-d-lat`), amp: O.lies(`${p}-d-amp`), dauer: O.lies(`${p}-d-dur`),
+          fLatenz: O.lies(`f-${k}-${s}-lat`), fFehlt: $(`f-${k}-${s}-fehlt`).checked, orte: werte,
         };
       }));
-      Object.keys(CIDP.SENSIBEL).forEach((nerv) => ['re', 'li'].forEach((s) => {
-        const p = `s-${nerv}-${s}`;
-        e.sensibel[`${nerv}-${s}`] = { amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
+      Object.keys(CIDP.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`s-${k}`, s)) return;
+        const p = `s-${k}-${s}`;
+        e.sensibel[`${k}-${s}`] = { amp: O.lies(`${p}-w-amp`), nlg: O.lies(`${p}-w-nlg`) };
       }));
       return e;
     }
+
+    // ---------- Ergebnis ----------
 
     function zeigeMatrix(erg) {
       const K = Object.keys(CIDP.KRITERIEN);
@@ -1029,16 +1150,14 @@ if (typeof module !== 'undefined') module.exports = CIDP;
       $('ausgabe').value = (erg.motor.length || erg.sensibilitaet.nerven.length) ? CIDP.befundtext(eingabe, erg) : '';
     }
 
-    baueMotorisch();
-    baueSensibel();
+    baue();
     document.addEventListener('input', aktualisiere);
     document.addEventListener('change', aktualisiere);
     $('kopieren').addEventListener('click', () => {
       navigator.clipboard.writeText($('ausgabe').value).catch(() => { $('ausgabe').select(); document.execCommand('copy'); });
     });
     $('leeren').addEventListener('click', () => {
-      document.querySelectorAll('input[type=text]').forEach((el) => (el.value = ''));
-      document.querySelectorAll('input[type=checkbox]').forEach((el) => (el.checked = false));
+      O.leeren();
       aktualisiere();
     });
     aktualisiere();
