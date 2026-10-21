@@ -19,3 +19,13 @@ Latenzdifferenz, Amp Diff = Amplitudenänderung gegenüber dem vorigen Ort.
   großzügig ausgelegt.
 - Plexus: EMG-Befunde (inkl. paravertebraler Muskulatur) ergänzen.
 
+
+## Offene Fragen zum Gerät
+- **„Dur“ in der Gerätesoftware:** Misst das Gerät die Dauer nur über die negativen Gipfel (Beginn des
+  ersten bis Ende des letzten negativen Gipfels, wie in der CIDP- und GBS-Leitlinie) oder die Gesamtdauer
+  des Potentials? Nur im ersten Fall darf „Dur“ direkt übernommen werden; sonst meldet CIDP fälschlich
+  Kriterium g bzw. eine Dispersion und GBS eine verlängerte distale Dauer. Beispiel: Medianus rechts
+  Handgel Dur 16,4 ms (CIDP-Grenze bei 20 Hz: 7,4 ms).
+- **Voreingestellte Distanzen (Plexus):** Welche Distanzen sind im Gerät für N. suprascapularis,
+  N. musculocutaneus, N. radialis (M. triceps) und N. femoralis hinterlegt? Ohne eingetragene Distanz gilt
+  derzeit die Norm der größten Distanz der Tabelle (großzügigste Grenze).
