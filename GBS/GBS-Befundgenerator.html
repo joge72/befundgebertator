@@ -53,6 +53,14 @@
     <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
     <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
     <label>Tage seit Symptomonset <input type="text" inputmode="decimal" id="tag"></label>
+    <label>Untere Filtergrenze
+      <select id="filter">
+        <option value="2">2 Hz</option>
+        <option value="5">5 Hz</option>
+        <option value="10">10 Hz</option>
+        <option value="20" selected>20 Hz</option>
+      </select>
+    </label>
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
@@ -221,8 +229,10 @@ const GBS = (function () {
   // mit irgendeinem der demyelinisierenden Merkmale.
   const STRENG = false;
 
-  // EAN/PNS 2023: distale CMAP-Dauer > 8,5 ms (Filter 2 Hz–10 kHz) stützt die Diagnose
+  // EAN/PNS 2023: distale CMAP-Dauer > 8,5 ms stützt die Diagnose; der Grenzwert gilt nur
+  // für eine untere Filtergrenze von 2 Hz und wird bei anderen Filtern nicht angewandt.
   const DAUER_GRENZE = 8.5;
+  const DAUER_FILTER = 2;
 
   // Untersuchungsprotokoll nach Rajabally: je Nerv eine distale und eine proximale Stimulation
   const MOTORISCH = {
@@ -389,7 +399,7 @@ const GBS = (function () {
     }
     if (ampBekannt && d.amp < 0.1 * norm.amp) m.amp10 = true;
 
-    const dauerLang = da(d.dauer) && d.dauer > DAUER_GRENZE;
+    const dauerLang = eingabe.filter === DAUER_FILTER && da(d.dauer) && d.dauer > DAUER_GRENZE;
     if (dauerLang) {
       auffaellig = true;
       text.push(T.dauer(d.dauer));
@@ -630,8 +640,8 @@ const GBS = (function () {
       pruefhinweise.push('Amplitudenreduktionen bei axonalen Formen können einer reversiblen Leitungsstörung entsprechen; eine Verlaufskontrolle kann die Zuordnung ändern.');
     }
 
-    if (motor.some((n) => n.dauerLang)) {
-      pruefhinweise.push('Der Grenzwert der distalen CMAP-Dauer von 8,5 ms gilt für einen Filterbandpass von 2 Hz–10 kHz.');
+    if (eingabe.filter !== DAUER_FILTER && Object.values(eingabe.motorisch).some((d) => d && da(d.dauer))) {
+      pruefhinweise.push(`Distale CMAP-Dauer nicht bewertet: Der Grenzwert der EAN/PNS-Leitlinie 2023 (> 8,5 ms) gilt nur für eine untere Filtergrenze von 2 Hz (eingestellt: ${eingabe.filter} Hz).`);
     }
 
     return { motor, sens, klasse, form, suralSparing, stuetzend, warnungen, pruefhinweise };
@@ -769,7 +779,7 @@ if (typeof module !== 'undefined') module.exports = GBS;
         const n = NORMWERTE.motorisch[nerv];
         setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
         setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
-        setze(`n-${nerv}-dauer`, '≤ 8,5 ms');
+        setze(`n-${nerv}-dauer`, eingabe.filter === 2 ? '≤ 8,5 ms' : 'nur bei 2 Hz bewertet');
         setze(`n-${nerv}-f`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(GBS.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
         setze(`n-${nerv}-prox`, def.ohneVerhaeltnis ? 'nicht gewertet' : 'Verhältnis > 0,7');
         setze(`n-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
@@ -785,7 +795,10 @@ if (typeof module !== 'undefined') module.exports = GBS;
     // ---------- Eingabe lesen ----------
 
     function leseEingabe() {
-      const e = { alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), kts: $('kts').checked, motorisch: {}, sensibel: {} };
+      const e = {
+        alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), kts: $('kts').checked,
+        filter: parseInt($('filter').value, 10), motorisch: {}, sensibel: {},
+      };
       Object.keys(GBS.MOTORISCH).forEach((nerv) => ['re', 'li'].forEach((s) => {
         const p = `m-${nerv}-${s}`;
         e.motorisch[`${nerv}-${s}`] = {

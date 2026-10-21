@@ -51,6 +51,14 @@
   <div class="zeile">
     <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
     <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
+    <label>Untere Filtergrenze
+      <select id="filter">
+        <option value="2">2 Hz</option>
+        <option value="5">5 Hz</option>
+        <option value="10">10 Hz</option>
+        <option value="20" selected>20 Hz</option>
+      </select>
+    </label>
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
@@ -963,8 +971,7 @@ if (typeof module !== 'undefined') module.exports = CIDP;
 
     function leseEingabe() {
       const e = {
-        // Untere Filtergrenze im Labor fest 20 Hz (Grenzwerte der distalen CMAP-Dauer, Tab. 2g)
-        alter: lies('alter'), groesse: lies('groesse'), filter: 20,
+        alter: lies('alter'), groesse: lies('groesse'), filter: parseInt($('filter').value, 10),
         kts: $('kts').checked,
         motorisch: {}, sensibel: {},
         phaenotyp: '', unterstuetzend: {},

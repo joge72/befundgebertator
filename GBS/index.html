@@ -54,6 +54,14 @@
     <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
     <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
     <label>Tage seit Symptomonset <input type="text" inputmode="decimal" id="tag"></label>
+    <label>Untere Filtergrenze
+      <select id="filter">
+        <option value="2">2 Hz</option>
+        <option value="5">5 Hz</option>
+        <option value="10">10 Hz</option>
+        <option value="20" selected>20 Hz</option>
+      </select>
+    </label>
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
 
@@ -130,7 +138,7 @@
         const n = NORMWERTE.motorisch[nerv];
         setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
         setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
-        setze(`n-${nerv}-dauer`, '≤ 8,5 ms');
+        setze(`n-${nerv}-dauer`, eingabe.filter === 2 ? '≤ 8,5 ms' : 'nur bei 2 Hz bewertet');
         setze(`n-${nerv}-f`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(GBS.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
         setze(`n-${nerv}-prox`, def.ohneVerhaeltnis ? 'nicht gewertet' : 'Verhältnis > 0,7');
         setze(`n-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
@@ -146,7 +154,10 @@
     // ---------- Eingabe lesen ----------
 
     function leseEingabe() {
-      const e = { alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), kts: $('kts').checked, motorisch: {}, sensibel: {} };
+      const e = {
+        alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), kts: $('kts').checked,
+        filter: parseInt($('filter').value, 10), motorisch: {}, sensibel: {},
+      };
       Object.keys(GBS.MOTORISCH).forEach((nerv) => ['re', 'li'].forEach((s) => {
         const p = `m-${nerv}-${s}`;
         e.motorisch[`${nerv}-${s}`] = {

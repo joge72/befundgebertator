@@ -14,8 +14,10 @@ const GBS = (function () {
   // mit irgendeinem der demyelinisierenden Merkmale.
   const STRENG = false;
 
-  // EAN/PNS 2023: distale CMAP-Dauer > 8,5 ms (Filter 2 Hz–10 kHz) stützt die Diagnose
+  // EAN/PNS 2023: distale CMAP-Dauer > 8,5 ms stützt die Diagnose; der Grenzwert gilt nur
+  // für eine untere Filtergrenze von 2 Hz und wird bei anderen Filtern nicht angewandt.
   const DAUER_GRENZE = 8.5;
+  const DAUER_FILTER = 2;
 
   // Untersuchungsprotokoll nach Rajabally: je Nerv eine distale und eine proximale Stimulation
   const MOTORISCH = {
@@ -182,7 +184,7 @@ const GBS = (function () {
     }
     if (ampBekannt && d.amp < 0.1 * norm.amp) m.amp10 = true;
 
-    const dauerLang = da(d.dauer) && d.dauer > DAUER_GRENZE;
+    const dauerLang = eingabe.filter === DAUER_FILTER && da(d.dauer) && d.dauer > DAUER_GRENZE;
     if (dauerLang) {
       auffaellig = true;
       text.push(T.dauer(d.dauer));
@@ -423,8 +425,8 @@ const GBS = (function () {
       pruefhinweise.push('Amplitudenreduktionen bei axonalen Formen können einer reversiblen Leitungsstörung entsprechen; eine Verlaufskontrolle kann die Zuordnung ändern.');
     }
 
-    if (motor.some((n) => n.dauerLang)) {
-      pruefhinweise.push('Der Grenzwert der distalen CMAP-Dauer von 8,5 ms gilt für einen Filterbandpass von 2 Hz–10 kHz.');
+    if (eingabe.filter !== DAUER_FILTER && Object.values(eingabe.motorisch).some((d) => d && da(d.dauer))) {
+      pruefhinweise.push(`Distale CMAP-Dauer nicht bewertet: Der Grenzwert der EAN/PNS-Leitlinie 2023 (> 8,5 ms) gilt nur für eine untere Filtergrenze von 2 Hz (eingestellt: ${eingabe.filter} Hz).`);
     }
 
     return { motor, sens, klasse, form, suralSparing, stuetzend, warnungen, pruefhinweise };
