@@ -267,6 +267,12 @@ const GBS = (function () {
 
   const ueber = (p) => `${prozent(p)} über dem Upper Limit of Normal`;
   const unter = (p) => `${prozent(p)} unter dem Lower Limit of Normal`;
+  // Lage eines Leitungsabschnitts im Befundtext
+  const WO = {
+    Unterarm: 'am Unterarm', Oberarm: 'am Oberarm', 'Axilla–Erb': 'zwischen Axilla und Erb',
+    Ellenbogen: 'über dem Ellenbogen', Unterschenkel: 'am Unterschenkel', Fibulaköpfchen: 'über dem Fibulaköpfchen',
+  };
+  const wo = (segment) => WO[segment] || segment;
   const undListe = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} und ${xs[xs.length - 1]}` : xs[0]);
   const aufzaehlung = (teile) => (teile.length > 1 ? `${teile.slice(0, -1).join(', ')} sowie ${teile[teile.length - 1]}` : teile[0]);
   const QUELLE = 'Rajabally et al. 2015';
@@ -280,7 +286,7 @@ const GBS = (function () {
     motorSatz: (nerv, teile) => `Nach Ableitung über dem ${nerv} ${teile.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(teile)}.`,
     dmlOhneZahl: 'eine verlängerte distal-motorische Latenz',
     msapReduziert: 'ein reduziertes MSAP',
-    nlgOhneZahl: (segment) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment}`,
+    nlgOhneZahl: (segment) => `eine verlangsamte motorische Nervenleitgeschwindigkeit ${wo(segment)}`,
     verhaeltnisOhneZahl: (von, bis) => `eine Amplitudenreduktion zwischen ${von} und ${bis}`,
     // Unauffällige Nerven in einem Satz, die Formulierung wechselt zwischen den Abschnitten
     normalSatz: (nerven, variante) => {
@@ -292,8 +298,8 @@ const GBS = (function () {
     dml: (wert, p) => `eine verlängerte distal-motorische Latenz von ${zahl(wert)} ms (${ueber(p)})`,
     keinCmap: 'kein motorisches Antwortpotential',
     cmapReduziert: (wert, p) => `ein reduziertes MSAP von ${zahl(wert)} mV (${unter(p)})`,
-    nlg: (segment, wert, p) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (${unter(p)})`,
-    nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
+    nlg: (segment, wert, p) => `eine verlangsamte motorische Nervenleitgeschwindigkeit ${wo(segment)} von ${zahl(wert)} m/s (${unter(p)})`,
+    nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit ${wo(segment)} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
     verhaeltnis: (von, bis, v) => `eine Amplitudenreduktion zwischen ${von} und ${bis} (Verhältnis proximal/distal ${zahl(v, 2)})`,
     dauer: (wert) => `eine verlängerte distale Potentialdauer von ${zahl(wert)} ms (Grenzwert ${zahl(DAUER_GRENZE)} ms)`,
 
@@ -301,7 +307,8 @@ const GBS = (function () {
     sensSatz: (nerv, teile) => `Nach Ableitung über dem ${nerv} ${teile.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(teile)}.`,
     keinSnap: 'kein sensibles Nervenaktionspotential',
     snapReduziert: (wert, p) => `ein reduziertes SNAP von ${zahl(wert)} µV (${unter(p)})`,
-    sensNlg: (wert, p) => `eine verlangsamte sensible Nervenleitgeschwindigkeit von ${zahl(wert)} m/s (${unter(p)})`,
+    snapOhneZahl: 'ein reduziertes SNAP',
+    sensNlgOhneZahl: 'eine verlangsamte sensible Nervenleitgeschwindigkeit',
     suralSparing: 'Es zeigt sich ein Sural-Sparing-Muster (pathologisches sensibles Potential des N. medianus bzw. N. ulnaris bei regelrechtem N. suralis).',
 
     // F-Wellen Antwort
@@ -522,20 +529,15 @@ const GBS = (function () {
   function pruefeSensNerv(nerv, seite, d, norm, eingabe) {
     const def = SENSIBEL[nerv];
     const nlgLln = normNlg(norm, 'wert', eingabe.alter);
-    const text = [];
-    let ampPath = false;
-    let pathologisch = false;
-    if (da(d.amp) && d.amp === 0) { text.push(T.keinSnap); ampPath = true; }
-    else if (da(d.amp) && da(norm.amp) && d.amp < norm.amp) { text.push(T.snapReduziert(d.amp, 1 - d.amp / norm.amp)); ampPath = true; }
-    if (da(d.nlg) && da(nlgLln) && d.nlg < nlgLln) { text.push(T.sensNlg(d.nlg, 1 - d.nlg / nlgLln)); pathologisch = true; }
+    const ampPath = da(d.amp) && (d.amp === 0 || (da(norm.amp) && d.amp < norm.amp));
+    const nlgPath = da(d.nlg) && da(nlgLln) && d.nlg < nlgLln;
     return {
       id: `${nerv}-${seite}`, nerv, seite,
       name: `${def.name} ${SEITEN[seite]}`,
-      pathologisch: pathologisch || ampPath, ampPath, ampGemessen: da(d.amp),
+      pathologisch: ampPath || nlgPath, ampPath, nlgPath, ampGemessen: da(d.amp), amp: d.amp, ampNorm: norm.amp,
       // Für AMSAN: SNAP ≤ 50 % des Lower Limit of Normal
       ampHalb: da(d.amp) && da(norm.amp) && d.amp <= 0.5 * norm.amp,
       nameLang: `${def.name} ${SEITE_LANG[seite]}`,
-      text: text.length ? T.sensSatz(`${def.name} ${SEITE_LANG[seite]}`, text) : null,
     };
   }
 
@@ -575,6 +577,21 @@ const GBS = (function () {
     if (dauerNerven.length) stuetzend.push(T.stuetzendDauer(dauerNerven));
     const aNerven = motor.filter((n) => n.aWellen).map((n) => n.name);
     if (aNerven.length) stuetzend.push(T.stuetzendA(aNerven));
+
+    // Sensible Zahlen nur, wenn sie für die Einordnung eine Rolle spielen:
+    // SNAP ≤ 50 % LLN bei axonaler Form (AMSAN) oder pathologisches SNAP beim Sural-Sparing-Muster
+    const axonal = klasse.typ === 'axonal' || klasse.typ === 'unerregbar';
+    sens.forEach((s) => {
+      const teile = [];
+      if (s.ampPath && s.amp === 0) {
+        teile.push(T.keinSnap);
+      } else if (s.ampPath) {
+        const relevant = (axonal && s.ampHalb) || (suralSparing && (s.nerv === 'ulnaris' || (s.nerv === 'medianus' && !eingabe.kts)));
+        teile.push(relevant ? T.snapReduziert(s.amp, 1 - s.amp / s.ampNorm) : T.snapOhneZahl);
+      }
+      if (s.nlgPath) teile.push(T.sensNlgOhneZahl);
+      s.text = teile.length ? T.sensSatz(s.nameLang, teile) : null;
+    });
 
     const warnungen = bereichsWarnungen(eingabe, normwerte, motor, sens);
     if (!da(eingabe.alter) && motor.some((n) => Array.isArray(normwerte.motorisch[n.nerv].nlg))) {

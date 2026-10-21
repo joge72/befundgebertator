@@ -118,6 +118,12 @@ const CIDP = (function () {
 
   const ueber = (p) => `${prozent(p)} über dem Upper Limit of Normal`;
   const unter = (p) => `${prozent(p)} unter dem Lower Limit of Normal`;
+  // Lage eines Leitungsabschnitts im Befundtext
+  const WO = {
+    Unterarm: 'am Unterarm', Oberarm: 'am Oberarm', 'Axilla–Erb': 'zwischen Axilla und Erb',
+    Ellenbogen: 'über dem Ellenbogen', Unterschenkel: 'am Unterschenkel', Fibulaköpfchen: 'über dem Fibulaköpfchen',
+  };
+  const wo = (segment) => WO[segment] || segment;
   const undListe = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} und ${xs[xs.length - 1]}` : xs[0]);
   const aufzaehlung = (teile) => (teile.length > 1 ? `${teile.slice(0, -1).join(', ')} sowie ${teile[teile.length - 1]}` : teile[0]);
 
@@ -131,8 +137,8 @@ const CIDP = (function () {
     motorSatz: (nerv, teile) => `Nach Ableitung über dem ${nerv} ${teile.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(teile)}.`,
     dmlOhneZahl: 'eine verlängerte distal-motorische Latenz',
     msapReduziert: 'ein reduziertes MSAP',
-    nlgOhneZahl: (segment) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment}`,
-    abfallOhneZahl: (segment) => `ein Amplitudenabfall über dem Segment ${segment}`,
+    nlgOhneZahl: (segment) => `eine verlangsamte motorische Nervenleitgeschwindigkeit ${wo(segment)}`,
+    abfallOhneZahl: (segment) => `ein Amplitudenabfall ${wo(segment)}`,
     // Unauffällige Nerven in einem Satz, die Formulierung wechselt zwischen den Abschnitten
     normalSatz: (nerven, variante) => {
       const liste = undListe(nerven.map((n) => `dem ${n}`));
@@ -143,8 +149,8 @@ const CIDP = (function () {
     dml: (wert, p) => `eine verlängerte distal-motorische Latenz von ${zahl(wert)} ms (${ueber(p)})`,
     keinCmap: 'kein motorisches Antwortpotential',
     dauer: (wert, p, grenze) => `eine verlängerte distale Potentialdauer von ${zahl(wert)} ms (${prozent(p)} über dem Grenzwert der Leitlinie von ${zahl(grenze)} ms)`,
-    nlg: (segment, wert, p) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (${unter(p)})`,
-    nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
+    nlg: (segment, wert, p) => `eine verlangsamte motorische Nervenleitgeschwindigkeit ${wo(segment)} von ${zahl(wert)} m/s (${unter(p)})`,
+    nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit ${wo(segment)} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
     leitungsblock: (von, bis, p) => `ein Leitungsblock zwischen ${von} und ${bis} mit einem Amplitudenabfall von ${prozent(p)}`,
     blockNichtBewertbar: 'Ein Leitungsblock ist bei einer distalen Amplitude unter 20 % des Lower Limit of Normal nicht bewertbar.',
     dispersion: (von, bis, p) => `eine pathologische temporale Dispersion zwischen ${von} und ${bis} mit einer Zunahme der Potentialdauer um ${prozent(p)}`,
