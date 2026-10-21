@@ -318,6 +318,7 @@ const CIDP = (function () {
 
   const ueber = (p) => `${prozent(p)} über dem Upper Limit of Normal`;
   const unter = (p) => `${prozent(p)} unter dem Lower Limit of Normal`;
+  const undListe = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} und ${xs[xs.length - 1]}` : xs[0]);
   const aufzaehlung = (teile) => (teile.length > 1 ? `${teile.slice(0, -1).join(', ')} sowie ${teile[teile.length - 1]}` : teile[0]);
 
   const LEITLINIE = 'EAN/PNS-Leitlinie 2021 nach van den Bergh et al.';
@@ -326,33 +327,40 @@ const CIDP = (function () {
     ueberschrift: (filter) => `CIDP-Programm (Filter ${filter} Hz – 10 kHz):`,
 
     // Motorische Neurographie, ein Satz je Nerv und Seite
-    motorSatz: (nerv, teile) => (teile.length
-      ? `Nach Ableitung über dem ${nerv} findet sich ${aufzaehlung(teile)}.`
-      : `Nach Ableitung über dem ${nerv} findet sich ein regelrechter Befund.`),
+    // Auffällige Nerven: Zahlen nur bei erfülltem Kriterium, sonst qualitativ
+    motorSatz: (nerv, teile, qual) => {
+      const q = [];
+      if (qual.has('demyel')) q.push(teile.length ? 'weitere demyelinisierende Veränderungen' : 'eine demyelinisierende Veränderung');
+      if (qual.has('axonal')) q.push('eine axonale Läsion');
+      const alle = [...teile, ...q];
+      return `Nach Ableitung über dem ${nerv} ${alle.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(alle)}.`;
+    },
+    // Unauffällige Nerven in einem Satz, die Formulierung wechselt zwischen den Abschnitten
+    normalSatz: (nerven, variante) => {
+      const liste = undListe(nerven.map((n) => `dem ${n}`));
+      return variante % 2 === 0
+        ? `Über ${liste} finden sich keine Auffälligkeiten.`
+        : `Nach Ableitung über ${liste} findet sich ${nerven.length > 1 ? 'jeweils ' : ''}ein regelrechter Befund.`;
+    },
     dml: (wert, p) => `eine verlängerte distal-motorische Latenz von ${zahl(wert)} ms (${ueber(p)})`,
-    ktsNichtGewertet: ', bei bekanntem Karpaltunnelsyndrom nicht als Demyelinisierungskriterium gewertet',
     keinCmap: 'kein motorisches Antwortpotential',
-    cmapReduziert: (wert, p) => `eine reduzierte Amplitude des Muskelsummenaktionspotentials von ${zahl(wert)} mV (${unter(p)})`,
     dauer: (wert, p, grenze) => `eine verlängerte distale Potentialdauer von ${zahl(wert)} ms (${prozent(p)} über dem Grenzwert der Leitlinie von ${zahl(grenze)} ms)`,
     nlg: (segment, wert, p) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (${unter(p)})`,
     nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
-    segmentNichtGewertet: ', über diesem Segment nicht als Demyelinisierungskriterium gewertet',
     leitungsblock: (von, bis, p) => `ein Leitungsblock zwischen ${von} und ${bis} mit einem Amplitudenabfall von ${prozent(p)}`,
-    abfallNichtGewertet: (segment, p) => `ein Amplitudenabfall von ${prozent(p)} über dem Segment ${segment}, der dort nicht als Leitungsblock gewertet wird`,
     blockNichtBewertbar: 'Ein Leitungsblock ist bei einer distalen Amplitude unter 20 % des Lower Limit of Normal nicht bewertbar.',
     dispersion: (von, bis, p) => `eine pathologische temporale Dispersion zwischen ${von} und ${bis} mit einer Zunahme der Potentialdauer um ${prozent(p)}`,
 
     // Sensible Neurographie, ein Satz je Nerv und Seite
-    sensSatz: (nerv, teile) => (teile.length
-      ? `Nach Ableitung über dem ${nerv} findet sich ${aufzaehlung(teile)}.`
-      : `Nach Ableitung über dem ${nerv} findet sich ein regelrechter Befund.`),
+    sensSatz: (nerv, teile) => `Nach Ableitung über dem ${nerv} ${teile.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(teile)}.`,
     keinSnap: 'kein sensibles Nervenaktionspotential',
     snapReduziert: (wert, p) => `eine reduzierte Amplitude des sensiblen Nervenaktionspotentials von ${zahl(wert)} µV (${unter(p)})`,
     sensNlg: (wert, p) => `eine verlangsamte sensible Nervenleitgeschwindigkeit von ${zahl(wert)} m/s (${unter(p)})`,
     suralSparing: 'Es zeigt sich ein Sural-Sparing-Muster (pathologisches sensibles Potential des N. medianus bzw. N. radialis bei regelrechtem N. suralis).',
 
     // F-Wellen Antwort, ein Satz je Nerv und Seite
-    fNormal: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine regelrechte minimale F-Wellen-Latenz von ${zahl(wert)} ms.`,
+    fNormal: (nerven) => `Nach Stimulation ${undListe(nerven.map((n) => `des ${n}`))} findet sich ${nerven.length > 1 ? 'jeweils ' : ''}eine regelrechte minimale F-Wellen-Latenz.`,
+    fVerlaengertQual: (nerv) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz im Sinne einer demyelinisierenden Veränderung.`,
     fVerlaengert: (nerv, wert, p) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz von ${zahl(wert)} ms (${ueber(p)}).`,
     fOhneNorm: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine minimale F-Wellen-Latenz von ${zahl(wert)} ms (ohne Körpergröße nicht bewertet).`,
     fFehlt: (nerv) => `Nach Stimulation des ${nerv} sind keine F-Wellen ableitbar.`,
@@ -378,6 +386,8 @@ const CIDP = (function () {
     const auffaellig = [];
     const text = [];
     const textHinweise = [];
+    // Werte ohne erfülltes Kriterium werden nur qualitativ beschrieben
+    const qual = new Set();
     const orte = d.orte || {};
 
     // (a) distal-motorische Latenz
@@ -385,7 +395,8 @@ const CIDP = (function () {
       const kts = nerv === 'medianus' && eingabe.kts;
       if (d.dml > norm.dml) {
         auffaellig.push('DML verlängert');
-        text.push(T.dml(d.dml, d.dml / norm.dml - 1) + (kts && d.dml >= 1.5 * norm.dml ? T.ktsNichtGewertet : ''));
+        if (d.dml >= 1.5 * norm.dml && !kts) text.push(T.dml(d.dml, d.dml / norm.dml - 1));
+        else qual.add('demyel');
       }
       if (d.dml >= 1.5 * norm.dml) {
         if (kts) {
@@ -404,7 +415,7 @@ const CIDP = (function () {
       text.push(T.keinCmap);
     } else if (da(d.amp) && da(norm.amp) && d.amp < norm.amp) {
       auffaellig.push('CMAP-Amplitude reduziert');
-      text.push(T.cmapReduziert(d.amp, 1 - d.amp / norm.amp));
+      qual.add('axonal');
     }
 
     // (g) distale CMAP-Dauer
@@ -429,7 +440,8 @@ const CIDP = (function () {
       }
       if (o.nlg < lln) {
         auffaellig.push(`NLG ${ort.segment} verlangsamt`);
-        text.push(T.nlg(ort.segment, o.nlg, 1 - o.nlg / lln) + (ort.ausgeschlossen && o.nlg <= 0.7 * lln ? T.segmentNichtGewertet : ''));
+        if (o.nlg <= 0.7 * lln && !ort.ausgeschlossen) text.push(T.nlg(ort.segment, o.nlg, 1 - o.nlg / lln));
+        else qual.add('demyel');
       }
       if (o.nlg <= 0.7 * lln) {
         if (ort.ausgeschlossen) {
@@ -457,7 +469,7 @@ const CIDP = (function () {
           blockUnbewertbar = true;
         } else if (ort.ausgeschlossen) {
           hinweise.push(`Amplitudenabfall bis ${ort.name} nicht gewertet (Tab. 2, Note 2)`);
-          text.push(T.abfallNichtGewertet(ort.segment, abfall));
+          qual.add('demyel');
         } else if (sulcusAbfall && (ort.id === 'ax' || ort.id === 'erb')) {
           // Abfall stammt aus dem Sulcus, bereits als nicht gewertet vermerkt
         } else {
@@ -494,6 +506,7 @@ const CIDP = (function () {
 
     // F-Wellen: (c) Latenz, (d) fehlende F-Wellen
     let fText = null;
+    let fNormal = false;
     const nameLang = `${def.name} ${SEITE_LANG[seite]}`;
     const fUln = normFLatenz(norm, eingabe.groesse);
     if (d.fFehlt) {
@@ -507,19 +520,19 @@ const CIDP = (function () {
         fText += T.fFehltNichtGewertet;
       }
     } else if (da(d.fLatenz)) {
-      if (!da(fUln)) {
-        fText = T.fOhneNorm(nameLang, d.fLatenz);
-      } else if (d.fLatenz > fUln) {
-        auffaellig.push('F-Wellen-Latenz verlängert');
-        fText = T.fVerlaengert(nameLang, d.fLatenz, d.fLatenz / fUln - 1);
-      } else {
-        fText = T.fNormal(nameLang, d.fLatenz);
-      }
       const ampNiedrig = da(d.amp) && da(norm.amp) && d.amp < 0.8 * norm.amp;
       const faktor = ampNiedrig ? 1.5 : 1.2;
       if (da(fUln) && d.fLatenz >= faktor * fUln) {
         k.c.erfuellt = true;
         k.c.details.push(`F-Wellen-Latenz ${zahl(d.fLatenz)} ms (${prozent(d.fLatenz / fUln - 1)} über Norm${ampNiedrig ? ', Schwelle 50 % wegen CMAP < 80 % der Norm' : ''})`);
+      }
+      if (!da(fUln)) {
+        fText = T.fOhneNorm(nameLang, d.fLatenz);
+      } else if (d.fLatenz > fUln) {
+        auffaellig.push('F-Wellen-Latenz verlängert');
+        fText = k.c.erfuellt ? T.fVerlaengert(nameLang, d.fLatenz, d.fLatenz / fUln - 1) : T.fVerlaengertQual(nameLang);
+      } else {
+        fNormal = true;
       }
     }
 
@@ -533,8 +546,11 @@ const CIDP = (function () {
       auffaellig: auffaellig.length > 0 || irgendein,
       auffaelligkeiten: auffaellig,
       distaleAmp: d.amp,
-      motorText: hatMotorwerte ? T.motorSatz(nameLang, text) + textHinweise.map((h) => ' ' + h).join('') : null,
-      fText,
+      nameLang,
+      motorText: hatMotorwerte && (text.length || qual.size || textHinweise.length)
+        ? T.motorSatz(nameLang, text, qual) + textHinweise.map((h) => ' ' + h).join('') : null,
+      motorNormal: hatMotorwerte && !text.length && !qual.size && !textHinweise.length,
+      fText, fNormal,
     };
   }
 
@@ -616,7 +632,8 @@ const CIDP = (function () {
       gliedmasse: `${seite}-${def.extremitaet}`,
       name: `${def.name} ${SEITEN[seite]}`,
       pathologisch: befunde.length > 0, befunde, ampPath, ampGemessen: da(d.amp), sensKriterium,
-      text: T.sensSatz(`${def.name} ${SEITE_LANG[seite]}`, text),
+      nameLang: `${def.name} ${SEITE_LANG[seite]}`,
+      text: text.length ? T.sensSatz(`${def.name} ${SEITE_LANG[seite]}`, text) : null,
     };
   }
 
@@ -813,14 +830,23 @@ const CIDP = (function () {
 
   function befundtext(eingabe, erg) {
     const z = [T.ueberschrift(eingabe.filter)];
-    const motor = erg.motor.filter((n) => n.motorText);
-    const fWellen = erg.motor.filter((n) => n.fText);
-    if (motor.length) z.push('', 'Motorische Neurographie:', ...motor.map((n) => n.motorText));
-    if (erg.sensibilitaet.nerven.length) {
-      z.push('', 'Sensible Neurographie:', ...erg.sensibilitaet.nerven.map((n) => n.text));
-      if (erg.sensibilitaet.suralSparing) z.push(T.suralSparing);
+    let variante = 0;
+    const abschnitt = (titel, auffaellig, normal) => {
+      if (!auffaellig.length && !normal.length) return;
+      z.push('', titel, ...auffaellig);
+      if (normal.length) z.push(T.normalSatz(normal, variante++));
+    };
+    abschnitt('Motorische Neurographie:', erg.motor.filter((n) => n.motorText).map((n) => n.motorText),
+      erg.motor.filter((n) => n.motorNormal).map((n) => n.nameLang));
+    const sens = erg.sensibilitaet.nerven;
+    abschnitt('Sensible Neurographie:', sens.filter((n) => n.text).map((n) => n.text), sens.filter((n) => !n.text).map((n) => n.nameLang));
+    if (erg.sensibilitaet.suralSparing) z.push(T.suralSparing);
+    const fAuff = erg.motor.filter((n) => n.fText).map((n) => n.fText);
+    const fNorm = erg.motor.filter((n) => n.fNormal).map((n) => n.nameLang);
+    if (fAuff.length || fNorm.length) {
+      z.push('', 'F-Wellen Antwort:', ...fAuff);
+      if (fNorm.length) z.push(T.fNormal(fNorm));
     }
-    if (fWellen.length) z.push('', 'F-Wellen Antwort:', ...fWellen.map((n) => n.fText));
 
     z.push('', 'Beurteilung:');
     const mk = erg.motorik;
