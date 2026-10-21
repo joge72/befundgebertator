@@ -19,6 +19,3 @@ Latenzdifferenz, Amp Diff = Amplitudenänderung gegenüber dem vorigen Ort.
   großzügig ausgelegt.
 - Plexus: EMG-Befunde (inkl. paravertebraler Muskulatur) ergänzen.
 
-## Unklare Normwerte (betreffen noch kein Programm)
-- N. ulnaris, F-Welle bei Stimulation am Ellenbogen: Foto 26,2 ms, Word-Dokument 26,6 ms.
-- Facialis-Prognose „schlecht“: Foto ≥ 95 %, Word-Dokument > 95 %.
