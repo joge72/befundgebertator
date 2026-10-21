@@ -126,8 +126,7 @@
       ['brachialis', 'lumbosacralis'].forEach((plexus) => {
         $(`motorisch-${plexus}`).innerHTML = motor(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
           const p = `m-${k}-${s}`;
-          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`)
-            + (def.proximal ? O.segmente(p, [{ id: 'x', label: `${ort(def)}-${def.muskel.replace('M. ', '')}` }], null, false) : '');
+          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`);
           return O.block(`m-${k}`, s, `Motorisch ${motorName(def)}`, `<p class="klein">${zuordnung(def)}</p>${tabelle}`);
         })).join('');
         $(`sensibel-${plexus}`).innerHTML = sens(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
@@ -147,9 +146,8 @@
         const p = `m-${k}-${s}`;
         if (def.proximal) {
           const n = NORMWERTE.proximal[def.proximal];
-          const d = eingabe.motorisch[`${k}-${s}`];
-          const uln = PLEXUS.normLeitzeit(n.leitzeit, d ? d.distanz : null);
-          O.setze(`n-${p}-lat`, uln.wert !== null ? `≤ ${zahl(uln.wert)} ms` : 'Dist eingeben');
+          const uln = PLEXUS.normLeitzeit(n.leitzeit);
+          O.setze(`n-${p}-lat`, `≤ ${zahl(uln.wert)} ms`);
           O.setze(`n-${p}-amp`, n.amp !== null ? `≥ ${zahl(n.amp)} mV` : 'Seitenvergleich');
         } else {
           const n = NORMWERTE.motorisch[def.distal];
@@ -174,9 +172,7 @@
       Object.keys(PLEXUS.MOTORISCH).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`m-${k}`, s)) return;
         const p = `m-${k}-${s}`;
-        const mm = O.lies(`${p}-x-dist`);
-        // Die Normtabelle der Leitzeit rechnet in cm
-        e.motorisch[`${k}-${s}`] = { distanz: mm !== null ? mm / 10 : null, latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
+        e.motorisch[`${k}-${s}`] = { latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
       }));
       Object.keys(PLEXUS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`s-${k}`, s)) return;

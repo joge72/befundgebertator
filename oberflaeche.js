@@ -70,30 +70,20 @@ const OBERFLAECHE = (function () {
     return `<table>${kopf}${rumpf}${norm}</table>`;
   }
 
-  // Segmente: Distanz und NLG; ohne eingetragene NLG wird sie aus Distanz und Latenzen berechnet
-  function segmente(praefix, zeilen, normId, mitNlg = true) {
-    const kopf = `<tr><th>Segmente</th><th>Dist [mm]</th>${mitNlg ? '<th>NLG [m/s]</th><th>Norm</th>' : ''}</tr>`;
-    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-dist`)}</td>${mitNlg
-      ? `<td>${feld(`${praefix}-${z.id}-nlg`)}</td><td class="norm" id="${normId}-${z.id}"></td>` : ''}</tr>`).join('');
+  // Segmente: NLG je Segment (die Distanzen sind in der Gerätesoftware hinterlegt)
+  function segmente(praefix, zeilen, normId) {
+    const kopf = '<tr><th>Segmente</th><th>NLG [m/s]</th><th>Norm</th></tr>';
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-nlg`)}</td>
+      <td class="norm" id="${normId}-${z.id}"></td></tr>`).join('');
     return `<table>${kopf}${rumpf}</table>`;
   }
 
-  // NLG eines Segments: eingetragen, sonst Distanz / Latenzdifferenz (Vorschlag im Feld)
-  function nlg(praefix, seg) {
-    const el = $(`${praefix}-${seg.id}-nlg`);
-    const dist = lies(`${praefix}-${seg.id}-dist`);
-    const a = lies(`${praefix}-${seg.von}-lat`);
-    const b = lies(`${praefix}-${seg.bis}-lat`);
-    const berechnet = dist !== null && a !== null && b !== null && b > a ? Math.round((dist / (b - a)) * 10) / 10 : null;
-    if (el) el.placeholder = berechnet !== null ? String(berechnet).replace('.', ',') : '';
-    const eingetragen = lies(`${praefix}-${seg.id}-nlg`);
-    return eingetragen !== null ? eingetragen : berechnet;
-  }
+  const nlg = (praefix, seg) => lies(`${praefix}-${seg.id}-nlg`);
 
   function setze(id, text) { const el = $(id); if (el) el.textContent = text; }
 
   function leeren() {
-    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; el.placeholder = ''; });
+    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; });
     document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
   }
 

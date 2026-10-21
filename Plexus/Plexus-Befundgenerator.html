@@ -291,30 +291,20 @@ const OBERFLAECHE = (function () {
     return `<table>${kopf}${rumpf}${norm}</table>`;
   }
 
-  // Segmente: Distanz und NLG; ohne eingetragene NLG wird sie aus Distanz und Latenzen berechnet
-  function segmente(praefix, zeilen, normId, mitNlg = true) {
-    const kopf = `<tr><th>Segmente</th><th>Dist [mm]</th>${mitNlg ? '<th>NLG [m/s]</th><th>Norm</th>' : ''}</tr>`;
-    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-dist`)}</td>${mitNlg
-      ? `<td>${feld(`${praefix}-${z.id}-nlg`)}</td><td class="norm" id="${normId}-${z.id}"></td>` : ''}</tr>`).join('');
+  // Segmente: NLG je Segment (die Distanzen sind in der Gerätesoftware hinterlegt)
+  function segmente(praefix, zeilen, normId) {
+    const kopf = '<tr><th>Segmente</th><th>NLG [m/s]</th><th>Norm</th></tr>';
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-nlg`)}</td>
+      <td class="norm" id="${normId}-${z.id}"></td></tr>`).join('');
     return `<table>${kopf}${rumpf}</table>`;
   }
 
-  // NLG eines Segments: eingetragen, sonst Distanz / Latenzdifferenz (Vorschlag im Feld)
-  function nlg(praefix, seg) {
-    const el = $(`${praefix}-${seg.id}-nlg`);
-    const dist = lies(`${praefix}-${seg.id}-dist`);
-    const a = lies(`${praefix}-${seg.von}-lat`);
-    const b = lies(`${praefix}-${seg.bis}-lat`);
-    const berechnet = dist !== null && a !== null && b !== null && b > a ? Math.round((dist / (b - a)) * 10) / 10 : null;
-    if (el) el.placeholder = berechnet !== null ? String(berechnet).replace('.', ',') : '';
-    const eingetragen = lies(`${praefix}-${seg.id}-nlg`);
-    return eingetragen !== null ? eingetragen : berechnet;
-  }
+  const nlg = (praefix, seg) => lies(`${praefix}-${seg.id}-nlg`);
 
   function setze(id, text) { const el = $(id); if (el) el.textContent = text; }
 
   function leeren() {
-    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; el.placeholder = ''; });
+    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; });
     document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
   }
 
@@ -392,10 +382,11 @@ const PLEXUS = (function () {
     return typeof zeile === 'object' ? zeile.wert : zeile;
   }
 
-  // Obere Normgrenze der Leitzeit für eine Distanz: linear interpoliert, außerhalb der Tabelle der Randwert
+  // Obere Normgrenze der Leitzeit für eine Distanz: linear interpoliert, außerhalb der Tabelle der Randwert.
+  // Ohne Distanz (in der Gerätesoftware hinterlegt) gilt die größte Distanz der Tabelle.
   function normLeitzeit(tabelle, distanz) {
     if (tabelle.length === 1) return { wert: tabelle[0].wert, ausserhalb: da(distanz) && distanz !== tabelle[0].distanz };
-    if (!da(distanz)) return { wert: null };
+    if (!da(distanz)) return { wert: tabelle[tabelle.length - 1].wert, ausserhalb: false };
     const erste = tabelle[0], letzte = tabelle[tabelle.length - 1];
     if (distanz <= erste.distanz) return { wert: erste.wert, ausserhalb: distanz < erste.distanz };
     if (distanz >= letzte.distanz) return { wert: letzte.wert, ausserhalb: distanz > letzte.distanz };
@@ -500,15 +491,11 @@ const PLEXUS = (function () {
       ampNorm = norm.amp;
       if (da(d.latenz)) {
         const uln = normLeitzeit(norm.leitzeit, d.distanz);
-        if (!da(uln.wert)) {
-          hinweise.push(`${def.name} ${SEITEN[seite]} (${def.muskel}): Leitzeit nicht bewertet, bitte Distanz eingeben`);
-        } else {
-          if (uln.ausserhalb) hinweise.push(`${def.name} ${SEITEN[seite]} (${def.muskel}): Distanz außerhalb der Normtabelle, gerechnet mit ${zahl(uln.wert)} ms`);
-          if (d.latenz > uln.wert) {
-            teile.push(T.latenz('Leitzeit', d.latenz, d.latenz / uln.wert - 1));
-            betroffen = true;
-            details.push(`Leitzeit ${zahl(d.latenz)} ms`);
-          }
+        if (uln.ausserhalb) hinweise.push(`${def.name} ${SEITEN[seite]} (${def.muskel}): Distanz außerhalb der Normtabelle, gerechnet mit ${zahl(uln.wert)} ms`);
+        if (d.latenz > uln.wert) {
+          teile.push(T.latenz('Leitzeit', d.latenz, d.latenz / uln.wert - 1));
+          betroffen = true;
+          details.push(`Leitzeit ${zahl(d.latenz)} ms`);
         }
       }
     } else {
@@ -719,8 +706,7 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
       ['brachialis', 'lumbosacralis'].forEach((plexus) => {
         $(`motorisch-${plexus}`).innerHTML = motor(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
           const p = `m-${k}-${s}`;
-          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`)
-            + (def.proximal ? O.segmente(p, [{ id: 'x', label: `${ort(def)}-${def.muskel.replace('M. ', '')}` }], null, false) : '');
+          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`);
           return O.block(`m-${k}`, s, `Motorisch ${motorName(def)}`, `<p class="klein">${zuordnung(def)}</p>${tabelle}`);
         })).join('');
         $(`sensibel-${plexus}`).innerHTML = sens(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
@@ -740,9 +726,8 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
         const p = `m-${k}-${s}`;
         if (def.proximal) {
           const n = NORMWERTE.proximal[def.proximal];
-          const d = eingabe.motorisch[`${k}-${s}`];
-          const uln = PLEXUS.normLeitzeit(n.leitzeit, d ? d.distanz : null);
-          O.setze(`n-${p}-lat`, uln.wert !== null ? `≤ ${zahl(uln.wert)} ms` : 'Dist eingeben');
+          const uln = PLEXUS.normLeitzeit(n.leitzeit);
+          O.setze(`n-${p}-lat`, `≤ ${zahl(uln.wert)} ms`);
           O.setze(`n-${p}-amp`, n.amp !== null ? `≥ ${zahl(n.amp)} mV` : 'Seitenvergleich');
         } else {
           const n = NORMWERTE.motorisch[def.distal];
@@ -767,9 +752,7 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
       Object.keys(PLEXUS.MOTORISCH).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`m-${k}`, s)) return;
         const p = `m-${k}-${s}`;
-        const mm = O.lies(`${p}-x-dist`);
-        // Die Normtabelle der Leitzeit rechnet in cm
-        e.motorisch[`${k}-${s}`] = { distanz: mm !== null ? mm / 10 : null, latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
+        e.motorisch[`${k}-${s}`] = { latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
       }));
       Object.keys(PLEXUS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`s-${k}`, s)) return;

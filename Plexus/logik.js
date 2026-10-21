@@ -67,10 +67,11 @@ const PLEXUS = (function () {
     return typeof zeile === 'object' ? zeile.wert : zeile;
   }
 
-  // Obere Normgrenze der Leitzeit für eine Distanz: linear interpoliert, außerhalb der Tabelle der Randwert
+  // Obere Normgrenze der Leitzeit für eine Distanz: linear interpoliert, außerhalb der Tabelle der Randwert.
+  // Ohne Distanz (in der Gerätesoftware hinterlegt) gilt die größte Distanz der Tabelle.
   function normLeitzeit(tabelle, distanz) {
     if (tabelle.length === 1) return { wert: tabelle[0].wert, ausserhalb: da(distanz) && distanz !== tabelle[0].distanz };
-    if (!da(distanz)) return { wert: null };
+    if (!da(distanz)) return { wert: tabelle[tabelle.length - 1].wert, ausserhalb: false };
     const erste = tabelle[0], letzte = tabelle[tabelle.length - 1];
     if (distanz <= erste.distanz) return { wert: erste.wert, ausserhalb: distanz < erste.distanz };
     if (distanz >= letzte.distanz) return { wert: letzte.wert, ausserhalb: distanz > letzte.distanz };
@@ -175,15 +176,11 @@ const PLEXUS = (function () {
       ampNorm = norm.amp;
       if (da(d.latenz)) {
         const uln = normLeitzeit(norm.leitzeit, d.distanz);
-        if (!da(uln.wert)) {
-          hinweise.push(`${def.name} ${SEITEN[seite]} (${def.muskel}): Leitzeit nicht bewertet, bitte Distanz eingeben`);
-        } else {
-          if (uln.ausserhalb) hinweise.push(`${def.name} ${SEITEN[seite]} (${def.muskel}): Distanz außerhalb der Normtabelle, gerechnet mit ${zahl(uln.wert)} ms`);
-          if (d.latenz > uln.wert) {
-            teile.push(T.latenz('Leitzeit', d.latenz, d.latenz / uln.wert - 1));
-            betroffen = true;
-            details.push(`Leitzeit ${zahl(d.latenz)} ms`);
-          }
+        if (uln.ausserhalb) hinweise.push(`${def.name} ${SEITEN[seite]} (${def.muskel}): Distanz außerhalb der Normtabelle, gerechnet mit ${zahl(uln.wert)} ms`);
+        if (d.latenz > uln.wert) {
+          teile.push(T.latenz('Leitzeit', d.latenz, d.latenz / uln.wert - 1));
+          betroffen = true;
+          details.push(`Leitzeit ${zahl(d.latenz)} ms`);
         }
       }
     } else {
