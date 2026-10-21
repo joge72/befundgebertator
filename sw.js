@@ -1,10 +1,12 @@
 // Service Worker: hält die App für die Offline-Nutzung im Zwischenspeicher.
 // Mit Internet wird immer die neueste Version geladen, ohne Internet die gespeicherte.
 // Bei Änderungen an der Dateiliste VERSION erhöhen.
-const VERSION = 'befunde-v1';
+const VERSION = 'befunde-v2';
 const DATEIEN = [
   './', './index.html', './manifest.json', './icon-180.png', './icon-512.png',
-  './CIDP/', './CIDP/index.html', './CIDP/logik.js', './CIDP/normwerte.js',
+  './normwerte.js',
+  './CIDP/', './CIDP/index.html', './CIDP/logik.js',
+  './GBS/', './GBS/index.html', './GBS/logik.js',
 ];
 
 self.addEventListener('install', (e) => {

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GBS-Befundgenerator</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Befunde">
+  <meta name="theme-color" content="#2b6cb0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px auto; max-width: 1100px; padding: 0 16px; color: #222; }
+    h1 { font-size: 1.5em; margin-bottom: 4px; }
+    h2 { font-size: 1.15em; margin: 28px 0 8px; border-bottom: 2px solid #2b6cb0; padding-bottom: 4px; }
+    h3 { font-size: 1em; margin: 16px 0 6px; }
+    .zurueck { display: inline-block; margin-bottom: 8px; color: #2b6cb0; text-decoration: none; }
+    .untertitel { color: #555; margin-top: 0; }
+    .zeile { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+    .zeile label { white-space: nowrap; }
+    table { border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; font-size: 0.92em; }
+    th { background: #edf2f7; }
+    td.norm { color: #555; white-space: nowrap; }
+    tr.ort td { background: #fafafa; }
+    tr.ort td:first-child { padding-left: 18px; }
+    input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
+    select { font-size: 16px; }
+    .nerven { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
+    .nerven > div, #matrix { min-width: 0; overflow-x: auto; }
+    .ja { color: #2f855a; font-weight: bold; text-align: center; }
+    .nein { color: #bbb; text-align: center; }
+    .pruefhinweise { border-left: 4px solid #2b6cb0; background: #ebf4ff; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .pruefhinweise ul { margin: 4px 0 0; padding-left: 18px; }
+    .warnung { background: #fff8e1; border-left: 4px solid #d69e2e; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .klein { font-size: 0.85em; color: #555; }
+    textarea { width: 100%; height: 360px; font-family: Arial, sans-serif; font-size: 0.95em; box-sizing: border-box; }
+    button { margin: 10px 8px 0 0; padding: 8px 16px; cursor: pointer; }
+    @media (max-width: 500px) {
+      input[type=text] { width: 54px; }
+      th, td { padding: 3px 4px; }
+    }
+  </style>
+</head>
+<body>
+
+  <a class="zurueck" href="../">← Übersicht</a>
+  <h1>GBS-Befundgenerator</h1>
+  <p class="untertitel">Auswertung nach den modifizierten elektrodiagnostischen Kriterien von Rajabally et al. (J Neurol Neurosurg Psychiatry 2015;86:115–119).</p>
+
+  <h2>Patient</h2>
+  <div class="zeile">
+    <label>Alter (Jahre) <input type="text" inputmode="decimal" id="alter"></label>
+    <label>Körpergröße (cm) <input type="text" inputmode="decimal" id="groesse"></label>
+    <label>Krankheitstag <input type="text" inputmode="decimal" id="tag"></label>
+  </div>
+
+  <h2>Motorische Neurographie</h2>
+  <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel.</p>
+  <div class="nerven" id="motorisch"></div>
+
+  <h2>Sensible Neurographie</h2>
+  <div class="nerven" id="sensibel"></div>
+
+  <h2>Motorische Merkmale je Nerv</h2>
+  <div id="matrix"></div>
+  <p class="klein" id="legende"></p>
+
+  <h2>Befund</h2>
+  <div id="warnungen"></div>
+  <div id="pruefhinweise"></div>
+  <textarea id="ausgabe" readonly></textarea>
+  <button id="kopieren">Befund kopieren</button>
+  <button id="leeren">Alle Felder leeren</button>
+
+  <script src="../normwerte.js"></script>
+  <script src="logik.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 1 });
+    const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
+
+    function lies(id) {
+      const el = $(id);
+      if (!el || el.value.trim() === '') return null;
+      const v = parseFloat(el.value.replace(',', '.'));
+      return Number.isNaN(v) ? null : v;
+    }
+
+    // ---------- Formular aufbauen ----------
+
+    function baueMotorisch() {
+      $('motorisch').innerHTML = Object.entries(GBS.MOTORISCH).map(([nerv, def]) => {
+        const z = (label, key, normId, klasse = '') => `<tr class="${klasse}"><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`m-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="${normId || ''}"></td></tr>`;
+        return `<div><h3>${def.name} <span class="klein">(${def.muskel})</span></h3><table>
+          <tr><th>Stimulation ${def.distal}</th><th>re.</th><th>li.</th><th>Norm</th></tr>
+          ${z('DML (ms)', 'dml', `n-${nerv}-dml`)}
+          ${z('CMAP (mV)', 'amp', `n-${nerv}-amp`)}
+          ${z('F-Wellen-Latenz (ms)', 'fLatenz', `n-${nerv}-f`)}
+          <tr><td>keine F-Wellen</td>${['re', 'li'].map((s) => `<td><input type="checkbox" id="m-${nerv}-${s}-fFehlt"></td>`).join('')}<td></td></tr>
+          <tr><th colspan="4">Stimulation ${def.ort.name}</th></tr>
+          ${z('CMAP (mV)', 'proxAmp', `n-${nerv}-prox`, 'ort')}
+          ${z(`NLG ${def.ort.segment} (m/s)`, 'nlg', `n-${nerv}-nlg`, 'ort')}
+        </table></div>`;
+      }).join('');
+    }
+
+    function baueSensibel() {
+      $('sensibel').innerHTML = Object.entries(GBS.SENSIBEL).map(([nerv, def]) => {
+        const z = (label, key) => `<tr><td>${label}</td>${['re', 'li'].map((s) => `<td>${feld(`s-${nerv}-${s}-${key}`)}</td>`).join('')}<td class="norm" id="ns-${nerv}-${key}"></td></tr>`;
+        return `<div><h3>${def.name}</h3><table>
+          <tr><th></th><th>re.</th><th>li.</th><th>Norm</th></tr>
+          ${z('SNAP (µV)', 'amp')}${z('NLG (m/s)', 'nlg')}
+        </table></div>`;
+      }).join('');
+    }
+
+    // ---------- Normspalte ----------
+
+    function zeigeNormen(eingabe) {
+      const setze = (id, text) => { if ($(id)) $(id).textContent = text; };
+      const fmt = (v, vor, einheit, leer = 'keine Norm') => (v === null || v === undefined ? leer : `${vor} ${zahl(v)} ${einheit}`);
+      // Altersabhängige Normen brauchen das Alter, größenabhängige die Körpergröße
+      const ohne = (tabelle, wert, text) => (Array.isArray(tabelle) && wert === null ? text : null);
+      Object.entries(GBS.MOTORISCH).forEach(([nerv, def]) => {
+        const n = NORMWERTE.motorisch[nerv];
+        setze(`n-${nerv}-dml`, fmt(n.dml, '≤', 'ms'));
+        setze(`n-${nerv}-amp`, fmt(n.amp, '≥', 'mV'));
+        setze(`n-${nerv}-f`, ohne(n.fLatenz, eingabe.groesse, 'Größe eingeben') || fmt(GBS.normFLatenz(n, eingabe.groesse), '≤', 'ms'));
+        setze(`n-${nerv}-prox`, def.ohneVerhaeltnis ? 'nicht gewertet' : 'Verhältnis > 0,7');
+        setze(`n-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben')
+          || fmt(GBS.normNlg(n, def.ort.id, eingabe.alter), '≥', 'm/s', 'keine Norm für dieses Alter'));
+      });
+      Object.keys(GBS.SENSIBEL).forEach((nerv) => {
+        const n = NORMWERTE.sensibel[nerv];
+        setze(`ns-${nerv}-amp`, fmt(n.amp, '≥', 'µV'));
+        setze(`ns-${nerv}-nlg`, ohne(n.nlg, eingabe.alter, 'Alter eingeben') || fmt(GBS.normNlg(n, 'wert', eingabe.alter), '≥', 'm/s'));
+      });
+    }
+
+    // ---------- Eingabe lesen ----------
+
+    function leseEingabe() {
+      const e = { alter: lies('alter'), groesse: lies('groesse'), tag: lies('tag'), motorisch: {}, sensibel: {} };
+      Object.keys(GBS.MOTORISCH).forEach((nerv) => ['re', 'li'].forEach((s) => {
+        const p = `m-${nerv}-${s}`;
+        e.motorisch[`${nerv}-${s}`] = {
+          dml: lies(`${p}-dml`), amp: lies(`${p}-amp`), fLatenz: lies(`${p}-fLatenz`), fFehlt: $(`${p}-fFehlt`).checked,
+          proxAmp: lies(`${p}-proxAmp`), nlg: lies(`${p}-nlg`),
+        };
+      }));
+      Object.keys(GBS.SENSIBEL).forEach((nerv) => ['re', 'li'].forEach((s) => {
+        const p = `s-${nerv}-${s}`;
+        e.sensibel[`${nerv}-${s}`] = { amp: lies(`${p}-amp`), nlg: lies(`${p}-nlg`) };
+      }));
+      return e;
+    }
+
+    // ---------- Ergebnis ----------
+
+    const KLASSEN = {
+      aidp: 'AIDP', axonal: 'axonale Verlaufsform', unerregbar: 'unerregbare axonale Verlaufsform',
+      unklar: 'nicht eindeutig zuzuordnen', normal: 'normal',
+    };
+
+    function zeigeMatrix(erg) {
+      const K = Object.keys(GBS.MERKMALE);
+      const kurz = { nlg: 'NLG < 70 %', dml: 'DML > 150 %', fLatenz: 'F-Latenz', fFehlt: 'F fehlt', verhaeltnis: 'prox/dist < 0,7', amp80: 'CMAP < 80 %', amp10: 'CMAP < 10 %' };
+      const leer = `<tr><td colspan="${K.length + 2}" class="klein">Noch keine motorischen Werte eingegeben.</td></tr>`;
+      const zeilen = erg.motor.length ? erg.motor.map((n) => {
+        const zellen = K.map((x) => (n.merkmale[x] ? '<td class="ja">✓</td>' : '<td class="nein">–</td>')).join('');
+        return `<tr><td>${n.name}</td>${zellen}<td class="klein">${n.details.join('; ')}</td></tr>`;
+      }).join('') : leer;
+      const klasse = erg.klasse.typ ? KLASSEN[erg.klasse.typ] + (erg.form ? ` (${erg.form})` : '') : '–';
+      $('matrix').innerHTML = `<table><tr><th>Nerv</th>${K.map((x) => `<th>${kurz[x]}</th>`).join('')}<th>Details</th></tr>${zeilen}</table>
+        <p><strong>Einordnung nach Rajabally:</strong> ${klasse}</p>`;
+      $('legende').innerHTML = K.map((x) => `${kurz[x]}: ${GBS.MERKMALE[x]}`).join('<br>');
+    }
+
+    function aktualisiere() {
+      const eingabe = leseEingabe();
+      zeigeNormen(eingabe);
+      const erg = GBS.werteAus(eingabe, NORMWERTE);
+      $('warnungen').innerHTML = erg.warnungen.map((w) => `<div class="warnung">${w}</div>`).join('');
+      $('pruefhinweise').innerHTML = erg.pruefhinweise.length
+        ? `<div class="pruefhinweise"><strong>Prüfhinweise</strong><ul>${erg.pruefhinweise.map((h) => `<li>${h}</li>`).join('')}</ul></div>`
+        : '';
+      zeigeMatrix(erg);
+      $('ausgabe').value = (erg.motor.length || erg.sens.length) ? GBS.befundtext(eingabe, erg) : '';
+    }
+
+    baueMotorisch();
+    baueSensibel();
+    document.addEventListener('input', aktualisiere);
+    document.addEventListener('change', aktualisiere);
+    $('kopieren').addEventListener('click', () => {
+      navigator.clipboard.writeText($('ausgabe').value).catch(() => { $('ausgabe').select(); document.execCommand('copy'); });
+    });
+    $('leeren').addEventListener('click', () => {
+      document.querySelectorAll('input[type=text]').forEach((el) => (el.value = ''));
+      document.querySelectorAll('input[type=checkbox]').forEach((el) => (el.checked = false));
+      aktualisiere();
+    });
+    aktualisiere();
+
+    // Offline-Nutzung als Web-App (nur über https, nicht als lokale Datei)
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('../sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

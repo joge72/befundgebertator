@@ -14,5 +14,6 @@ es wird nichts installiert und keine Daten verlassen den Rechner.
 - `index.html` – Eingabemaske und Ergebnisanzeige
 - `logik.js` – Auswertung nach Tabelle 2 (motorisch, streng: dasselbe Kriterium in 2 Nerven),
   Tabelle 3 (sensibel) und Tabelle 6 (Diagnosekategorien)
-- `normwerte.js` – laboreigene Normwerte (NLG altersabhängig, F-Welle für die Beine größenabhängig)
-- `CIDP-Befundgenerator.html` – alles in einer Datei, wird mit `python3 einzeldatei.py` aus den drei Dateien oben erzeugt
+- `CIDP-Befundgenerator.html` – alles in einer Datei, wird mit `python3 einzeldateien.py` im Hauptordner erzeugt
+
+Die Normwerte stehen für alle Programme gemeinsam in [`normwerte.js`](../normwerte.js) im Hauptordner.
