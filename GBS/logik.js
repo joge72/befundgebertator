@@ -83,14 +83,12 @@ const GBS = (function () {
     ueberschrift: (tag) => `GBS-Programm${da(tag) ? ` (${zahl(tag, 0)} ${tag === 1 ? 'Tag' : 'Tage'} nach Symptomonset)` : ''}:`,
 
     // Motorische Neurographie
-    // Auffällige Nerven: Zahlen nur bei erfülltem Merkmal, sonst qualitativ
-    motorSatz: (nerv, teile, qual) => {
-      const q = [];
-      if (qual.has('demyel')) q.push(teile.length ? 'weitere demyelinisierende Veränderungen' : 'eine demyelinisierende Veränderung');
-      if (qual.has('axonal')) q.push('eine axonale Läsion');
-      const alle = [...teile, ...q];
-      return `Nach Ableitung über dem ${nerv} ${alle.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(alle)}.`;
-    },
+    // Auffällige Nerven: Zahlen nur bei erfülltem Merkmal, sonst nur die Art der Veränderung
+    motorSatz: (nerv, teile) => `Nach Ableitung über dem ${nerv} ${teile.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(teile)}.`,
+    dmlOhneZahl: 'eine verlängerte distal-motorische Latenz',
+    msapReduziert: 'ein reduziertes MSAP',
+    nlgOhneZahl: (segment) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment}`,
+    verhaeltnisOhneZahl: (von, bis) => `eine Amplitudenreduktion zwischen ${von} und ${bis}`,
     // Unauffällige Nerven in einem Satz, die Formulierung wechselt zwischen den Abschnitten
     normalSatz: (nerven, variante) => {
       const liste = undListe(nerven.map((n) => `dem ${n}`));
@@ -100,7 +98,7 @@ const GBS = (function () {
     },
     dml: (wert, p) => `eine verlängerte distal-motorische Latenz von ${zahl(wert)} ms (${ueber(p)})`,
     keinCmap: 'kein motorisches Antwortpotential',
-    cmapReduziert: (wert, p) => `eine reduzierte Amplitude des Muskelsummenaktionspotentials von ${zahl(wert)} mV (${unter(p)})`,
+    cmapReduziert: (wert, p) => `ein reduziertes MSAP von ${zahl(wert)} mV (${unter(p)})`,
     nlg: (segment, wert, p) => `eine verlangsamte motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (${unter(p)})`,
     nlgOhneNorm: (segment, wert) => `eine motorische Nervenleitgeschwindigkeit im Segment ${segment} von ${zahl(wert)} m/s (für dieses Alter keine Norm vorhanden)`,
     verhaeltnis: (von, bis, v) => `eine Amplitudenreduktion zwischen ${von} und ${bis} (Verhältnis proximal/distal ${zahl(v, 2)})`,
@@ -109,13 +107,13 @@ const GBS = (function () {
     // Sensible Neurographie
     sensSatz: (nerv, teile) => `Nach Ableitung über dem ${nerv} ${teile.length > 1 ? 'finden' : 'findet'} sich ${aufzaehlung(teile)}.`,
     keinSnap: 'kein sensibles Nervenaktionspotential',
-    snapReduziert: (wert, p) => `eine reduzierte Amplitude des sensiblen Nervenaktionspotentials von ${zahl(wert)} µV (${unter(p)})`,
+    snapReduziert: (wert, p) => `ein reduziertes SNAP von ${zahl(wert)} µV (${unter(p)})`,
     sensNlg: (wert, p) => `eine verlangsamte sensible Nervenleitgeschwindigkeit von ${zahl(wert)} m/s (${unter(p)})`,
     suralSparing: 'Es zeigt sich ein Sural-Sparing-Muster (pathologisches sensibles Potential des N. medianus bzw. N. ulnaris bei regelrechtem N. suralis).',
 
     // F-Wellen Antwort
     fNormal: (nerven) => `Nach Stimulation ${undListe(nerven.map((n) => `des ${n}`))} findet sich ${nerven.length > 1 ? 'jeweils ' : ''}eine regelrechte minimale F-Wellen-Latenz.`,
-    fVerlaengertQual: (nerv) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz im Sinne einer demyelinisierenden Veränderung.`,
+    fVerlaengertQual: (nerv) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz.`,
     fVerlaengert: (nerv, wert, p) => `Nach Stimulation des ${nerv} findet sich eine verlängerte minimale F-Wellen-Latenz von ${zahl(wert)} ms (${ueber(p)}).`,
     fOhneNorm: (nerv, wert) => `Nach Stimulation des ${nerv} findet sich eine minimale F-Wellen-Latenz von ${zahl(wert)} ms (ohne Körpergröße nicht bewertet).`,
     fFehlt: (nerv) => `Nach Stimulation des ${nerv} sind keine F-Wellen ableitbar.`,
@@ -146,9 +144,8 @@ const GBS = (function () {
     Object.keys(MERKMALE).forEach((x) => (m[x] = false));
     const details = [];
     const hinweise = [];
+    // Werte ohne erfülltes Merkmal werden ohne Zahlen beschrieben
     const text = [];
-    // Werte ohne erfülltes Merkmal werden nur qualitativ beschrieben
-    const qual = new Set();
     let auffaellig = false;
     const nameLang = `${def.name} ${SEITE_LANG[seite]}`;
     const ampBekannt = da(d.amp) && da(norm.amp);
@@ -160,7 +157,7 @@ const GBS = (function () {
         m.dml = true;
         details.push(`DML ${zahl(d.dml)} ms (${prozent(d.dml / norm.dml - 1)} über Norm)`);
       } else {
-        qual.add('demyel');
+        text.push(T.dmlOhneZahl);
       }
     }
 
@@ -170,7 +167,7 @@ const GBS = (function () {
     } else if (ampBekannt && d.amp < norm.amp) {
       auffaellig = true;
       if (d.amp < 0.8 * norm.amp) text.push(T.cmapReduziert(d.amp, 1 - d.amp / norm.amp));
-      else qual.add('axonal');
+      else text.push(T.msapReduziert);
     }
     if (ampBekannt && d.amp < 0.8 * norm.amp) {
       m.amp80 = true;
@@ -193,7 +190,7 @@ const GBS = (function () {
         }
       } else if (d.nlg < lln) {
         auffaellig = true;
-        if (d.nlg >= 0.7 * lln) qual.add('demyel');
+        if (d.nlg >= 0.7 * lln) text.push(T.nlgOhneZahl(def.ort.segment));
         if (d.nlg < 0.7 * lln) {
           text.push(T.nlg(def.ort.segment, d.nlg, 1 - d.nlg / lln));
           m.nlg = true;
@@ -208,7 +205,7 @@ const GBS = (function () {
       if (v <= 0.7) {
         auffaellig = true;
         if (v < 0.7 && !def.ohneVerhaeltnis) text.push(T.verhaeltnis(def.distal, def.ort.name, v));
-        else qual.add('demyel');
+        else text.push(T.verhaeltnisOhneZahl(def.distal, def.ort.name));
       }
       if (v < 0.7 && !def.ohneVerhaeltnis) {
         m.verhaeltnis = true;
@@ -261,8 +258,8 @@ const GBS = (function () {
       demyelinisierend: DEMYELINISIEREND.filter((x) => m[x]),
       auffaellig, amp: d.amp, ampNorm: norm.amp, dauerLang, aWellen: !!d.aWellen,
       nameLang,
-      motorText: hatMotorwerte && (text.length || qual.size) ? T.motorSatz(nameLang, text, qual) : null,
-      motorNormal: hatMotorwerte && !text.length && !qual.size,
+      motorText: hatMotorwerte && text.length ? T.motorSatz(nameLang, text) : null,
+      motorNormal: hatMotorwerte && !text.length,
       fText, fNormal,
     };
   }
