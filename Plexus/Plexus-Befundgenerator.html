@@ -682,6 +682,8 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
     const motorName = (def) => `${name(def.name)} (${def.muskel})`;
     // Stimulationsort: Erb'scher Punkt bzw. Leiste für die proximalen Nerven, sonst distal
     const DISTAL = { medianus: 'Handgel', ulnaris: 'Handgel', peroneus: 'Fußrist', tibialis: 'Innenknöchel' };
+    // Distanz nur, wenn die Normtabelle mehrere Distanzen kennt
+    const mitDistanz = (def) => !!def.proximal && NORMWERTE.proximal[def.proximal].leitzeit.length > 1;
     const ort = (def) => (def.proximal ? (def.plexus === 'brachialis' ? 'Plexus' : 'Leiste') : DISTAL[def.distal]);
 
     const zuordnung = (def) => (def.plexus === 'brachialis'
@@ -706,7 +708,9 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
       ['brachialis', 'lumbosacralis'].forEach((plexus) => {
         $(`motorisch-${plexus}`).innerHTML = motor(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
           const p = `m-${k}-${s}`;
-          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`);
+          const tabelle = O.gebiete(p, [{ id: 'x', label: ort(def) }], SPALTEN, `n-${p}`)
+            + (mitDistanz(def) ? `<table><tr><th>Segmente</th><th>Dist [mm]</th></tr>
+              <tr><td>${ort(def)}-${def.muskel.replace('M. ', '')}</td><td>${O.feld(`${p}-x-dist`)}</td></tr></table>` : '');
           return O.block(`m-${k}`, s, `Motorisch ${motorName(def)}`, `<p class="klein">${zuordnung(def)}</p>${tabelle}`);
         })).join('');
         $(`sensibel-${plexus}`).innerHTML = sens(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
@@ -726,8 +730,11 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
         const p = `m-${k}-${s}`;
         if (def.proximal) {
           const n = NORMWERTE.proximal[def.proximal];
-          const uln = PLEXUS.normLeitzeit(n.leitzeit);
-          O.setze(`n-${p}-lat`, `≤ ${zahl(uln.wert)} ms`);
+          const d = eingabe.motorisch[`${k}-${s}`];
+          const distanz = d ? d.distanz : null;
+          const uln = PLEXUS.normLeitzeit(n.leitzeit, distanz);
+          const letzte = n.leitzeit[n.leitzeit.length - 1].distanz;
+          O.setze(`n-${p}-lat`, `≤ ${zahl(uln.wert)} ms${mitDistanz(def) && distanz === null ? ` (bei ${zahl(letzte * 10)} mm)` : ''}`);
           O.setze(`n-${p}-amp`, n.amp !== null ? `≥ ${zahl(n.amp)} mV` : 'Seitenvergleich');
         } else {
           const n = NORMWERTE.motorisch[def.distal];
@@ -752,7 +759,9 @@ if (typeof module !== 'undefined') module.exports = PLEXUS;
       Object.keys(PLEXUS.MOTORISCH).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`m-${k}`, s)) return;
         const p = `m-${k}-${s}`;
-        e.motorisch[`${k}-${s}`] = { latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
+        const mm = O.lies(`${p}-x-dist`);
+        // Die Normtabelle der Leitzeit rechnet in cm
+        e.motorisch[`${k}-${s}`] = { distanz: mm !== null ? mm / 10 : null, latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
       }));
       Object.keys(PLEXUS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`s-${k}`, s)) return;
