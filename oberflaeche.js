@@ -102,12 +102,98 @@ const OBERFLAECHE = (function () {
 
   const nlg = (praefix, seg) => lies(`${praefix}-${seg.id}-nlg`);
 
+  // ---------- Export aus der Gerätesoftware einlesen ----------
+
+  // Liest den kopierten Text des PDF-Exports "NC Data". Bevorzugt werden die Abschnitte mit
+  // -2SD/+2SD-Spalten, weil dort nur Messwerte stehen; die Abschnitte mit Ref.Dev enthalten
+  // zusätzlich Abweichungen und werden nur verwendet, wenn die anderen fehlen.
+  // Ergebnis: [{ name: 'medianus', art: 'motorisch', seite: 're', zeilen: [{ label, werte }] }]
+  function leseExport(text) {
+    const abschnitte = { zweiSD: [], refDev: [] };
+    let format = 'refDev';
+    let nerv = null;
+    text.split(/\r?\n/).map((z) => z.trim()).filter(Boolean).forEach((z) => {
+      if (/^ms\b/.test(z)) { format = z.includes('-2SD') ? 'zweiSD' : 'refDev'; return; }
+      const kopf = z.match(/^(\S+) (Motorisch|Sensorisch) (Rechts|Links)$/);
+      if (kopf) {
+        nerv = { name: kopf[1].toLowerCase(), art: kopf[2] === 'Motorisch' ? 'motorisch' : 'sensibel', seite: kopf[3] === 'Rechts' ? 're' : 'li', zeilen: [] };
+        abschnitte[format].push(nerv);
+        return;
+      }
+      const zeile = z.match(/^(.*?)\s+(-?\d+(?:[.,]\d+)?(?:\s+-?\d+(?:[.,]\d+)?)*)$/);
+      if (nerv && zeile) {
+        nerv.zeilen.push({
+          label: zeile[1].split('|')[0].trim(),
+          werte: zeile[2].split(/\s+/).map((v) => parseFloat(v.replace(',', '.'))),
+        });
+      } else if (!/^(Motor|Sensory|Nerve|NC Data)\b/.test(z)) {
+        nerv = null;
+      }
+    });
+    return abschnitte.zweiSD.length ? abschnitte.zweiSD : abschnitte.refDev;
+  }
+
+  // Werte einer Exportzeile: motorisch distal [Lat], Segment [Lat, NLG];
+  // sensorisch nur eindeutig bei einem Wert (NLG) oder drei Werten (Latenz, Amp, NLG)
+  function exportWerte(nerv, zeile) {
+    const w = zeile.werte;
+    if (nerv.art === 'motorisch') return { lat: w[0], nlg: zeile.label.includes(' - ') ? null : (w[1] ?? null) };
+    if (w.length === 1) return { nlg: w[0] };
+    if (w.length === 3) return { amp: w[1], nlg: w[2] };
+    return null;
+  }
+
+  // zuordnung(nerv) liefert { block, felder: (zeile, werte) => [[feldId, wert], ...] } oder null.
+  // Übernommene Felder werden grün markiert, leere Felder derselben Tabellenzeile gelb.
+  function baueImport(container, zuordnung, nachher) {
+    $(container).innerHTML = `<details><summary>Export aus dem Programm einfügen (NC Data)</summary>
+      <p class="klein">PDF-Export öffnen, alles markieren (Strg+A), kopieren und hier einfügen. Übernommen werden Latenzen und NLG;
+        Amplituden, Dur_neg und min F Lat bitte per Hand ergänzen (gelb markiert).</p>
+      <textarea id="${container}-text" rows="6"></textarea>
+      <button id="${container}-los" type="button">Übernehmen</button>
+      <p id="${container}-meldung" class="klein"></p></details>`;
+    $(`${container}-los`).addEventListener('click', () => {
+      const nerven = leseExport($(`${container}-text`).value);
+      let anzahl = 0;
+      const unbekannt = [];
+      const markiert = [];
+      nerven.forEach((nerv) => {
+        const ziel = zuordnung(nerv);
+        if (!ziel) { unbekannt.push(`${nerv.name} ${nerv.art}`); return; }
+        const kasten = $(`w-${ziel.block}-${nerv.seite}`);
+        if (kasten && !kasten.checked) { kasten.checked = true; kasten.dispatchEvent(new Event('change', { bubbles: true })); }
+        nerv.zeilen.forEach((zeile) => {
+          const werte = exportWerte(nerv, zeile);
+          if (!werte) { unbekannt.push(`${nerv.name} ${zeile.label} (Werte nicht eindeutig)`); return; }
+          ziel.felder(zeile, werte).forEach(([id, wert]) => {
+            const el = $(id);
+            if (!el || wert === null || wert === undefined) return;
+            el.value = String(wert).replace('.', ',');
+            el.classList.add('importiert');
+            el.classList.remove('fehlt');
+            markiert.push(el);
+            anzahl += 1;
+          });
+        });
+      });
+      markiert.forEach((el) => {
+        const tr = el.closest('tr');
+        if (tr) tr.querySelectorAll('input[type=text]').forEach((f) => { if (f.value === '') f.classList.add('fehlt'); });
+      });
+      zeigeBloecke();
+      $(`${container}-meldung`).textContent = `${anzahl} Werte übernommen.${unbekannt.length ? ` Für dieses Programm nicht benötigt oder nicht eindeutig: ${[...new Set(unbekannt)].join(', ')}.` : ''}`;
+      nachher();
+    });
+    // Markierungen verschwinden, sobald ein Feld bearbeitet wird
+    document.addEventListener('input', (e) => { if (e.target.classList) e.target.classList.remove('importiert', 'fehlt'); });
+  }
+
   function setze(id, text) { const el = $(id); if (el) el.textContent = text; }
 
   function leeren() {
-    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; });
+    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; el.classList.remove('importiert', 'fehlt'); });
     document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
   }
 
-  return { SEITEN, SENSIBEL_ZEILEN, sensWerte, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
+  return { SEITEN, SENSIBEL_ZEILEN, sensWerte, leseExport, baueImport, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
 })();

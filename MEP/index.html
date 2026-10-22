@@ -45,6 +45,10 @@
     .block table { margin-bottom: 6px; }
     tr.normzeile td { background: #f7fafc; }
     .leer { color: #555; font-size: 0.92em; }
+    input.importiert { background: #e6ffed; }
+    input.fehlt { background: #fffbea; border-color: #d69e2e; }
+    #import details { margin: 8px 0; }
+    #import textarea { height: 120px; }
     td.pathologisch { color: #c53030; font-weight: bold; }
   </style>
 </head>
@@ -54,6 +58,8 @@
   <h1>MEP-Befundgenerator</h1>
   <p class="untertitel">Motorisch evozierte Potentiale: zentralmotorische Leitungszeit (ZML) nach der F-Wellen-Methode,
     ZML = Leitzeit MEP − (minimale F-Wellen-Latenz + DML − 1) / 2.</p>
+
+  <div id="import"></div>
 
   <h2>Untersuchte Muskeln</h2>
   <div id="auswahl"></div>
@@ -102,6 +108,17 @@
         </table>`);
       })).join('');
       O.zeigeBloecke();
+      O.baueImport('import', exportZuordnung, aktualisiere);
+    }
+
+    // ---------- Export aus der Gerätesoftware: DML aus der distalen Stimulation ----------
+
+    const EXPORT_MEP = { ulnaris: 'adm', tibialis: 'ah' };
+
+    function exportZuordnung(nerv) {
+      const ziel = nerv.art === 'motorisch' ? EXPORT_MEP[nerv.name] : null;
+      if (!ziel) return null;
+      return { block: `mep-${ziel}`, felder: (zeile, w) => (zeile.label.includes(' - ') ? [[`mep-${ziel}-${nerv.seite}-dml`, w.lat]] : []) };
     }
 
     // ---------- Eingabe lesen (nur ausgewählte Muskeln) ----------

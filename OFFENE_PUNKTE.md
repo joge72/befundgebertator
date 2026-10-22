@@ -1,17 +1,11 @@
 # Offene Punkte
 
-## Werte einfügen (Copy & Paste aus der Gerätesoftware)
-Geplant: In CIDP, GBS und Plexus ein Feld „Werte einfügen“, das kopierte Tabellen der Gerätesoftware
-automatisch in die Eingabemaske überträgt. Später wird direkt aus dem Programm kopiert, bisher nur
-Text aus Fotos (iPhone-Texterkennung) getestet.
-
-Aus Fotos bekannt (Oktober 2026): motorische Tabellen (Lat, Amp, Dur_neg, Dur_ges, Stim; Segmente mit Dist,
-NLG, Amp Diff, Temp), sensorische Tabellen pro Finger (Dist, Lat, Amp, NLG, Stim) und die F-Antwort
-(min/mitt/max F Lat, min F-M Lat, #F, F%). Die Eingabemasken verwenden bereits diese Beschriftungen.
-PDF-Export „NC Data“ (aus der XML-Datei des Programms, über „Microsoft Print to PDF“): Text ist sauber
-zeilenweise lesbar (Nerv, Seite, Gebiet/Segment, Lat, CV, F-M Lat). Es fehlen aber Amp (motorisch und
-sensorisch), Dur_neg, die sensible Latenz und die minimale F-Latenz. Offen: Lässt sich die Berichtsvorlage
-so einstellen, dass diese Spalten mit exportiert werden? Lässt sich statt des PDFs die XML-Datei speichern?
+## Export aus der Gerätesoftware
+Eingebaut: Feld „Export aus dem Programm einfügen (NC Data)“ in allen Programmen. Übernommen werden Nerv,
+Seite, Latenzen und NLG (bei MEP die DML). Der Export enthält keine Amplituden, kein Dur_neg und statt der
+min F Lat nur die min F-M Lat; diese Werte werden per Hand ergänzt (gelb markiert).
+Offen: Lässt sich die Berichtsvorlage um Amp, Dur_neg und min F Lat erweitern? Dann können auch diese Werte
+übernommen werden.
 
 ## Später überdenken
 - CIDP: strenge Auslegung von Tabelle 2 (dasselbe Kriterium in zwei Nerven) – bei GBS wird inzwischen

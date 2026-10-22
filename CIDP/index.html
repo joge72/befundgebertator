@@ -45,6 +45,10 @@
     .block table { margin-bottom: 6px; }
     tr.normzeile td { background: #f7fafc; }
     .leer { color: #555; font-size: 0.92em; }
+    input.importiert { background: #e6ffed; }
+    input.fehlt { background: #fffbea; border-color: #d69e2e; }
+    #import details { margin: 8px 0; }
+    #import textarea { height: 120px; }
   </style>
 </head>
 <body>
@@ -67,6 +71,8 @@
     </label>
     <label><input type="checkbox" id="kts"> Karpaltunnelsyndrom bekannt</label>
   </div>
+
+  <div id="import"></div>
 
   <h2>Untersuchte Nerven</h2>
   <div id="auswahl"></div>
@@ -142,6 +148,36 @@
           SENS_SPALTEN, `n-${p}`, sz.zeilen.length > 1 ? `Norm (${normZeile})` : 'Norm'));
       })).join('');
       O.zeigeBloecke();
+      O.baueImport('import', exportZuordnung, aktualisiere);
+    }
+
+    // ---------- Export aus der Gerätesoftware ----------
+
+    function exportZuordnung(nerv) {
+      if (nerv.art === 'motorisch') {
+        const def = CIDP.MOTORISCH[nerv.name];
+        if (!def) return null;
+        const p = `m-${nerv.name}-${nerv.seite}`;
+        const segs = ((def) => orte(def).segs)(def);
+        return {
+          block: `m-${nerv.name}`,
+          felder: (zeile, w) => {
+            if (zeile.label.includes(' - ')) return [[`${p}-d-lat`, w.lat]];
+            const seg = segs.find((x) => x.label === zeile.label);
+            return seg ? [[`${p}-${seg.bis}-lat`, w.lat], [`${p}-${seg.id}-nlg`, w.nlg]] : [];
+          },
+        };
+      }
+      const sz = O.SENSIBEL_ZEILEN[nerv.name];
+      if (!sz || !CIDP.SENSIBEL[nerv.name]) return null;
+      const p = `s-${nerv.name}-${nerv.seite}`;
+      return {
+        block: `s-${nerv.name}`,
+        felder: (zeile, w) => {
+          const z = sz.zeilen.find(([, label]) => label === zeile.label);
+          return z ? [[`${p}-${z[0]}-amp`, w.amp], [`${p}-${z[0]}-nlg`, w.nlg]] : [];
+        },
+      };
     }
 
     // ---------- Normwerte ----------
