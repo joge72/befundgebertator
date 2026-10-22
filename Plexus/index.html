@@ -67,7 +67,7 @@
   <h3>Motorisch</h3>
   <div class="bloecke" id="motorisch-brachialis" data-bereich="motorisch-brachialis"></div>
   <p class="leer" data-leer="motorisch-brachialis">Keine motorischen Nerven ausgewählt.</p>
-  <h3>Sensibel</h3>
+  <h3>Sensorisch</h3>
   <div class="bloecke" id="sensibel-brachialis" data-bereich="sensibel-brachialis"></div>
   <p class="leer" data-leer="sensibel-brachialis">Keine sensiblen Nerven ausgewählt.</p>
 
@@ -75,7 +75,7 @@
   <h3>Motorisch</h3>
   <div class="bloecke" id="motorisch-lumbosacralis" data-bereich="motorisch-lumbosacralis"></div>
   <p class="leer" data-leer="motorisch-lumbosacralis">Keine motorischen Nerven ausgewählt.</p>
-  <h3>Sensibel</h3>
+  <h3>Sensorisch</h3>
   <div class="bloecke" id="sensibel-lumbosacralis" data-bereich="sensibel-lumbosacralis"></div>
   <p class="leer" data-leer="sensibel-lumbosacralis">Keine sensiblen Nerven ausgewählt.</p>
 
@@ -101,7 +101,7 @@
     const name = (n) => { const k = n.replace(/^N\. /, ''); return k.charAt(0).toUpperCase() + k.slice(1); };
     const motorName = (def) => `${name(def.name)} (${def.muskel})`;
     // Stimulationsort: Erb'scher Punkt bzw. Leiste für die proximalen Nerven, sonst distal
-    const DISTAL = { medianus: 'Handgel', ulnaris: 'Handgel', peroneus: 'Fußrist', tibialis: 'Innenknöchel' };
+    const DISTAL = { medianus: 'Handgel', ulnaris: 'Handgel', peroneus: 'Knöchel', tibialis: 'Knöchel' };
     // Distanz nur, wenn die Normtabelle mehrere Distanzen kennt
     const mitDistanz = (def) => !!def.proximal && NORMWERTE.proximal[def.proximal].leitzeit.length > 1;
     const ort = (def) => (def.proximal ? (def.plexus === 'brachialis' ? 'Plexus' : 'Leiste') : DISTAL[def.distal]);
@@ -112,17 +112,31 @@
 
     // ---------- Formular aufbauen ----------
 
+    // Sensible Ableitungen in Blöcken wie in der Gerätesoftware: die Finger von N. medianus und N. ulnaris
+    // stehen in einem Block, jede Zeile ist ein eigener Nerv der Plexus-Zuordnung.
+    const SENS_BLOECKE = (() => {
+      const bloecke = [
+        { id: 'medianus', name: 'Medianus', zeilen: [['medD3', 'Handgel - Dig III'], ['medD1', 'Handgel - Dig I'], ['medD2', 'Handgel - Dig II'], ['medD4', 'Handgel - Dig IV']] },
+        { id: 'ulnaris', name: 'Ulnaris', zeilen: [['ulnD4', 'Handgel - Dig IV'], ['ulnD5', 'Handgel - Dig V']] },
+      ];
+      const gruppiert = bloecke.flatMap((b) => b.zeilen.map(([k]) => k));
+      Object.entries(PLEXUS.SENSIBEL).forEach(([k, d]) => {
+        if (!gruppiert.includes(k)) bloecke.push({ id: k, name: name(d.name), zeilen: [[k, k === 'sural' ? 'Knöchel - u. Wadenmitte' : 'Messung']] });
+      });
+      bloecke.forEach((b) => { b.plexus = PLEXUS.SENSIBEL[b.zeilen[0][0]].plexus; });
+      return bloecke;
+    })();
+
     function baue() {
       const gruppe = (titel, liste, praefix, beschriftung) => ({
         titel, bloecke: liste.map(([k, d]) => ({ id: `${praefix}-${k}`, name: beschriftung(d) })),
       });
       const motor = (plexus) => Object.entries(PLEXUS.MOTORISCH).filter(([, d]) => d.plexus === plexus);
-      const sens = (plexus) => Object.entries(PLEXUS.SENSIBEL).filter(([, d]) => d.plexus === plexus);
       O.baueAuswahl('auswahl', [
         gruppe('Plexus brachialis motorisch', motor('brachialis'), 'm', motorName),
-        gruppe('Plexus brachialis sensibel', sens('brachialis'), 's', (d) => name(d.name)),
+        { titel: 'Plexus brachialis sensor', bloecke: SENS_BLOECKE.filter((b) => b.plexus === 'brachialis').map((b) => ({ id: `s-${b.id}`, name: b.name })) },
         gruppe('Plexus lumbosacralis motorisch', motor('lumbosacralis'), 'm', motorName),
-        gruppe('Plexus lumbosacralis sensibel', sens('lumbosacralis'), 's', (d) => name(d.name)),
+        { titel: 'Plexus lumbosacralis sensor', bloecke: SENS_BLOECKE.filter((b) => b.plexus === 'lumbosacralis').map((b) => ({ id: `s-${b.id}`, name: b.name })) },
       ], 'plexus-auswahl', aktualisiere);
 
       ['brachialis', 'lumbosacralis'].forEach((plexus) => {
@@ -133,11 +147,14 @@
               <tr><td>${ort(def)}-${def.muskel.replace('M. ', '')}</td><td>${O.feld(`${p}-x-dist`)}</td></tr></table>` : '');
           return O.block(`m-${k}`, s, `Motorisch ${motorName(def)}`, `<p class="klein">${zuordnung(def)}</p>${tabelle}`);
         })).join('');
-        $(`sensibel-${plexus}`).innerHTML = sens(plexus).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
-          const p = `s-${k}-${s}`;
-          const spalten = [{ key: 'amp', label: 'Amp [µV]' }, ...(def.norm ? [{ key: 'nlg', label: 'NLG [m/s]' }] : [])];
-          return O.block(`s-${k}`, s, `Sensibel ${name(def.name)}`,
-            `<p class="klein">${zuordnung(def)}</p>${O.gebiete(p, [{ id: 'w', label: 'Messung' }], spalten, `n-${p}`)}`);
+        $(`sensibel-${plexus}`).innerHTML = SENS_BLOECKE.filter((b) => b.plexus === plexus).flatMap((b) => O.SEITEN.map(([s]) => {
+          const mitNlg = b.zeilen.some(([k]) => PLEXUS.SENSIBEL[k].norm);
+          const zeilen = b.zeilen.map(([k, label]) => {
+            const def = PLEXUS.SENSIBEL[k];
+            return `<tr><td>${label}<br><span class="klein">${zuordnung(def)}</span></td><td>${O.feld(`s-${k}-${s}-amp`)}</td>
+              ${mitNlg ? `<td>${def.norm ? O.feld(`s-${k}-${s}-nlg`) : ''}</td>` : ''}<td class="norm" id="n-s-${k}-${s}"></td></tr>`;
+          }).join('');
+          return O.block(`s-${b.id}`, s, `Sensorisch ${b.name}`, `<table><tr><th>Gebiete</th><th>Amp [µV]</th>${mitNlg ? '<th>NLG [m/s]</th>' : ''}<th>Norm</th></tr>${zeilen}</table>`);
         })).join('');
       });
       O.zeigeBloecke();
@@ -163,12 +180,10 @@
         }
       }));
       Object.entries(PLEXUS.SENSIBEL).forEach(([k, def]) => O.SEITEN.forEach(([s]) => {
-        const p = `s-${k}-${s}`;
-        if (!def.norm) { O.setze(`n-${p}-amp`, 'Seitenvergleich'); return; }
+        if (!def.norm) { O.setze(`n-s-${k}-${s}`, 'Seitenvergleich'); return; }
         const n = NORMWERTE.sensibel[def.norm];
-        O.setze(`n-${p}-amp`, `≥ ${zahl(n.amp)} µV`);
         const nlg = Array.isArray(n.nlg) && eingabe.alter === null ? null : PLEXUS.normNlg(n, eingabe.alter);
-        O.setze(`n-${p}-nlg`, nlg !== null ? `≥ ${zahl(nlg)} m/s` : 'Alter eingeben');
+        O.setze(`n-s-${k}-${s}`, `≥ ${zahl(n.amp)} µV · ${nlg !== null ? `≥ ${zahl(nlg)} m/s` : 'NLG: Alter eingeben'}`);
       }));
     }
 
@@ -183,10 +198,11 @@
         // Die Normtabelle der Leitzeit rechnet in cm
         e.motorisch[`${k}-${s}`] = { distanz: mm !== null ? mm / 10 : null, latenz: O.lies(`${p}-x-lat`), amp: O.lies(`${p}-x-amp`) };
       }));
-      Object.keys(PLEXUS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
-        if (!O.aktiv(`s-${k}`, s)) return;
-        const p = `s-${k}-${s}`;
-        e.sensibel[`${k}-${s}`] = { amp: O.lies(`${p}-w-amp`), nlg: O.lies(`${p}-w-nlg`) };
+      SENS_BLOECKE.forEach((b) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`s-${b.id}`, s)) return;
+        b.zeilen.forEach(([k]) => {
+          e.sensibel[`${k}-${s}`] = { amp: O.lies(`s-${k}-${s}-amp`), nlg: O.lies(`s-${k}-${s}-nlg`) };
+        });
       }));
       return e;
     }

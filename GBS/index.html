@@ -73,7 +73,7 @@
   <h2>Untersuchte Nerven</h2>
   <div id="auswahl"></div>
 
-  <h2>Motorische Neurographie</h2>
+  <h2>NLG motorisch</h2>
   <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel, Dauer vom Beginn des ersten bis zum Ende des letzten negativen Gipfels.</p>
   <div class="bloecke" id="motorisch" data-bereich="motorisch"></div>
   <p class="leer" data-leer="motorisch">Oben unter „Untersuchte Nerven“ die motorischen Nerven auswählen.</p>
@@ -82,7 +82,7 @@
   <div id="fwellen" data-bereich="fwellen"></div>
   <p class="leer" data-leer="fwellen">Erscheint für die ausgewählten motorischen Nerven.</p>
 
-  <h2>Sensible Neurographie</h2>
+  <h2>NLG sensorisch</h2>
   <div class="bloecke" id="sensibel" data-bereich="sensibel"></div>
   <p class="leer" data-leer="sensibel">Oben unter „Untersuchte Nerven“ die sensiblen Nerven auswählen.</p>
 
@@ -104,7 +104,7 @@
     const $ = (id) => document.getElementById(id);
     const O = OBERFLAECHE;
     const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 1 });
-    const SPALTEN = [{ key: 'lat', label: 'Lat [ms]' }, { key: 'amp', label: 'Amp [mV]' }, { key: 'dur', label: 'Dur [ms]' }];
+    const SPALTEN = [{ key: 'lat', label: 'Lat [ms]' }, { key: 'amp', label: 'Amp [mV]' }, { key: 'dur', label: 'Dur_neg [ms]' }];
     const SENS_SPALTEN = [{ key: 'amp', label: 'Amp [µV]' }, { key: 'nlg', label: 'NLG [m/s]' }];
     // "N. medianus" -> "Medianus", wie in der Gerätesoftware
     const name = (def) => { const n = def.name.replace(/^N\. /, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
@@ -121,7 +121,7 @@
     function baue() {
       O.baueAuswahl('auswahl', [
         { titel: 'NLG motorisch', bloecke: Object.entries(GBS.MOTORISCH).map(([k, d]) => ({ id: `m-${k}`, name: name(d) })) },
-        { titel: 'NLG sensibel', bloecke: Object.entries(GBS.SENSIBEL).map(([k, d]) => ({ id: `s-${k}`, name: name(d) })) },
+        { titel: 'NLG sensor', bloecke: Object.entries(GBS.SENSIBEL).map(([k, d]) => ({ id: `s-${k}`, name: name(d) })) },
       ], 'gbs-auswahl', aktualisiere);
 
       $('motorisch').innerHTML = Object.entries(GBS.MOTORISCH).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
@@ -131,7 +131,7 @@
           O.gebiete(p, zeilen, SPALTEN, `n-${p}`) + O.segmente(p, [seg], `n-${p}-nlg`));
       })).join('');
 
-      $('fwellen').innerHTML = `<table><tr><th></th><th>F-Lat [ms]</th><th>keine F-Wellen</th><th>A-Wellen</th><th>Norm</th></tr>${
+      $('fwellen').innerHTML = `<table><tr><th></th><th>min F Lat [ms]</th><th>keine F-Wellen</th><th>A-Wellen</th><th>Norm</th></tr>${
         O.SEITEN.flatMap(([s, seite]) => Object.entries(GBS.MOTORISCH).map(([k, def]) =>
           `<tr data-block="m-${k}" data-seite="${s}" hidden><td>${seite} ${name(def)}</td><td>${O.feld(`f-${k}-${s}-lat`)}</td>
             <td><input type="checkbox" id="f-${k}-${s}-fehlt"></td><td><input type="checkbox" id="f-${k}-${s}-a"></td>
@@ -139,7 +139,10 @@
 
       $('sensibel').innerHTML = Object.entries(GBS.SENSIBEL).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
         const p = `s-${k}-${s}`;
-        return O.block(`s-${k}`, s, `Sensibel ${name(def)}`, O.gebiete(p, [{ id: 'w', label: 'Messung' }], SENS_SPALTEN, `n-${p}`));
+        const sz = O.SENSIBEL_ZEILEN[k];
+        const normZeile = sz.zeilen.find(([z]) => z === sz.norm)[1];
+        return O.block(`s-${k}`, s, `Sensorisch ${name(def)}`, O.gebiete(p, sz.zeilen.map(([id, label]) => ({ id, label })),
+          SENS_SPALTEN, `n-${p}`, sz.zeilen.length > 1 ? `Norm (${normZeile.replace('Handgel - ', '')})` : 'Norm'));
       })).join('');
       O.zeigeBloecke();
     }
@@ -169,7 +172,11 @@
 
     // ---------- Eingabe lesen (nur ausgewählte Nerven) ----------
 
+    // Hinweise der Eingabe, z. B. wenn eine andere sensible Ableitung als die Normzeile ausgewertet wird
+    let sensHinweise = [];
+
     function leseEingabe() {
+      sensHinweise = [];
       const e = {
         alter: O.lies('alter'), groesse: O.lies('groesse'), tag: O.lies('tag'), kts: $('kts').checked,
         filter: parseInt($('filter').value, 10), motorisch: {}, sensibel: {},
@@ -187,7 +194,9 @@
       Object.keys(GBS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`s-${k}`, s)) return;
         const p = `s-${k}-${s}`;
-        e.sensibel[`${k}-${s}`] = { amp: O.lies(`${p}-w-amp`), nlg: O.lies(`${p}-w-nlg`) };
+        const w = O.sensWerte(p, k, `${s === 're' ? 'Rechts' : 'Links'} Sensorisch ${name(GBS.SENSIBEL[k])}`);
+        e.sensibel[`${k}-${s}`] = { amp: w.amp, nlg: w.nlg };
+        if (w.hinweis) sensHinweise.push(w.hinweis);
       }));
       return e;
     }
@@ -218,6 +227,7 @@
       const eingabe = leseEingabe();
       zeigeNormen(eingabe);
       const erg = GBS.werteAus(eingabe, NORMWERTE);
+      erg.pruefhinweise.push(...sensHinweise);
       $('warnungen').innerHTML = erg.warnungen.map((w) => `<div class="warnung">${w}</div>`).join('');
       $('pruefhinweise').innerHTML = erg.pruefhinweise.length
         ? `<div class="pruefhinweise"><strong>Prüfhinweise</strong><ul>${erg.pruefhinweise.map((h) => `<li>${h}</li>`).join('')}</ul></div>`

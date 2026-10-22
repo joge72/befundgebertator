@@ -72,7 +72,7 @@
   <h2>Untersuchte Nerven</h2>
   <div id="auswahl"></div>
 
-  <h2>Motorische Neurographie</h2>
+  <h2>NLG motorisch</h2>
   <p class="klein">Leere Felder gelten als nicht untersucht. Amplituden negativer Gipfel, Dauer vom Beginn des ersten bis zum Ende des letzten negativen Gipfels.</p>
   <div class="bloecke" id="motorisch" data-bereich="motorisch"></div>
   <p class="leer" data-leer="motorisch">Oben unter „Untersuchte Nerven“ die motorischen Nerven auswählen.</p>
@@ -81,7 +81,7 @@
   <div id="fwellen" data-bereich="fwellen"></div>
   <p class="leer" data-leer="fwellen">Erscheint für die ausgewählten motorischen Nerven.</p>
 
-  <h2>Sensible Neurographie</h2>
+  <h2>NLG sensorisch</h2>
   <div class="bloecke" id="sensibel" data-bereich="sensibel"></div>
   <p class="leer" data-leer="sensibel">Oben unter „Untersuchte Nerven“ die sensiblen Nerven auswählen.</p>
 
@@ -241,10 +241,31 @@ const OBERFLAECHE = (function () {
 
   // Bezeichnungen der Stimulationsorte wie in der Gerätesoftware
   const KURZ = {
-    Handgelenk: 'Handgel', Ellenbogen: 'Ellbogen', 'unterhalb Ellenbogen': 'unter Ellbogen',
-    'oberhalb Ellenbogen': 'über Ellbogen', Erb: 'Plexus', 'unterhalb Fibulaköpfchen': 'unter Fibulaköpfchen',
-    'oberhalb Fibulaköpfchen': 'über Fibulaköpfchen',
+    Handgelenk: 'Handgel', Ellenbogen: 'Ellbogen', 'unterhalb Ellenbogen': 'infracub.',
+    'oberhalb Ellenbogen': 'supracubital', Erb: 'Plexus', Fußrist: 'Knöchel', Innenknöchel: 'Knöchel',
+    'unterhalb Fibulaköpfchen': 'unt. Knie', 'oberhalb Fibulaköpfchen': 'ob. Knie', Kniekehle: 'Pop Fossa',
   };
+
+  // Sensible Ableitungen wie in der Gerätesoftware (Zeilen in der Reihenfolge des Geräts).
+  // norm: Zeile, für die der Normwert gilt; ausgewertet wird sie, sonst die erste gefüllte Zeile.
+  const SENSIBEL_ZEILEN = {
+    medianus: { zeilen: [['d3', 'Handgel - Dig III'], ['d1', 'Handgel - Dig I'], ['d2', 'Handgel - Dig II']], norm: 'd2' },
+    ulnaris: { zeilen: [['d4', 'Handgel - Dig IV'], ['d5', 'Handgel - Dig V']], norm: 'd5' },
+    radialis: { zeilen: [['w', 'R. superficialis']], norm: 'w' },
+    suralis: { zeilen: [['w', 'Knöchel - u. Wadenmitte']], norm: 'w' },
+  };
+
+  // Werte der ausgewerteten sensiblen Zeile und ein Hinweis, wenn sie nicht die Normzeile ist
+  function sensWerte(praefix, nerv, nervName) {
+    const def = SENSIBEL_ZEILEN[nerv];
+    const werte = (id) => ({ amp: lies(`${praefix}-${id}-amp`), nlg: lies(`${praefix}-${id}-nlg`) });
+    const gefuellt = (id) => { const w = werte(id); return w.amp !== null || w.nlg !== null; };
+    const id = gefuellt(def.norm) ? def.norm : (def.zeilen.map(([z]) => z).find(gefuellt) || def.norm);
+    const zeile = (z) => def.zeilen.find(([k]) => k === z)[1];
+    const hinweis = id !== def.norm && gefuellt(id)
+      ? `${nervName}: Normwert gilt für ${zeile(def.norm)}, ausgewertet wurde ${zeile(id)}` : null;
+    return { ...werte(id), hinweis };
+  }
   const kurz = (name) => KURZ[name] || name;
 
   function lies(id) {
@@ -296,11 +317,11 @@ const OBERFLAECHE = (function () {
   }
 
   // Gebiete: Zeilen = Stimulationsorte, Spalten = Messgrößen; Normwerte in der letzten Zeile
-  function gebiete(praefix, zeilen, spalten, normId) {
+  function gebiete(praefix, zeilen, spalten, normId, normLabel = 'Norm') {
     const kopf = `<tr><th>Gebiete</th>${spalten.map((s) => `<th>${s.label}</th>`).join('')}</tr>`;
     const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td>${spalten.map((s) =>
       `<td>${feld(`${praefix}-${z.id}-${s.key}`)}</td>`).join('')}</tr>`).join('');
-    const norm = normId ? `<tr class="normzeile"><td>Norm</td>${spalten.map((s) => `<td class="norm" id="${normId}-${s.key}"></td>`).join('')}</tr>` : '';
+    const norm = normId ? `<tr class="normzeile"><td>${normLabel}</td>${spalten.map((s) => `<td class="norm" id="${normId}-${s.key}"></td>`).join('')}</tr>` : '';
     return `<table>${kopf}${rumpf}${norm}</table>`;
   }
 
@@ -321,7 +342,7 @@ const OBERFLAECHE = (function () {
     document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
   }
 
-  return { SEITEN, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
+  return { SEITEN, SENSIBEL_ZEILEN, sensWerte, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
 })();
 
 </script>
@@ -843,7 +864,7 @@ if (typeof module !== 'undefined') module.exports = GBS;
     const $ = (id) => document.getElementById(id);
     const O = OBERFLAECHE;
     const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 1 });
-    const SPALTEN = [{ key: 'lat', label: 'Lat [ms]' }, { key: 'amp', label: 'Amp [mV]' }, { key: 'dur', label: 'Dur [ms]' }];
+    const SPALTEN = [{ key: 'lat', label: 'Lat [ms]' }, { key: 'amp', label: 'Amp [mV]' }, { key: 'dur', label: 'Dur_neg [ms]' }];
     const SENS_SPALTEN = [{ key: 'amp', label: 'Amp [µV]' }, { key: 'nlg', label: 'NLG [m/s]' }];
     // "N. medianus" -> "Medianus", wie in der Gerätesoftware
     const name = (def) => { const n = def.name.replace(/^N\. /, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
@@ -860,7 +881,7 @@ if (typeof module !== 'undefined') module.exports = GBS;
     function baue() {
       O.baueAuswahl('auswahl', [
         { titel: 'NLG motorisch', bloecke: Object.entries(GBS.MOTORISCH).map(([k, d]) => ({ id: `m-${k}`, name: name(d) })) },
-        { titel: 'NLG sensibel', bloecke: Object.entries(GBS.SENSIBEL).map(([k, d]) => ({ id: `s-${k}`, name: name(d) })) },
+        { titel: 'NLG sensor', bloecke: Object.entries(GBS.SENSIBEL).map(([k, d]) => ({ id: `s-${k}`, name: name(d) })) },
       ], 'gbs-auswahl', aktualisiere);
 
       $('motorisch').innerHTML = Object.entries(GBS.MOTORISCH).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
@@ -870,7 +891,7 @@ if (typeof module !== 'undefined') module.exports = GBS;
           O.gebiete(p, zeilen, SPALTEN, `n-${p}`) + O.segmente(p, [seg], `n-${p}-nlg`));
       })).join('');
 
-      $('fwellen').innerHTML = `<table><tr><th></th><th>F-Lat [ms]</th><th>keine F-Wellen</th><th>A-Wellen</th><th>Norm</th></tr>${
+      $('fwellen').innerHTML = `<table><tr><th></th><th>min F Lat [ms]</th><th>keine F-Wellen</th><th>A-Wellen</th><th>Norm</th></tr>${
         O.SEITEN.flatMap(([s, seite]) => Object.entries(GBS.MOTORISCH).map(([k, def]) =>
           `<tr data-block="m-${k}" data-seite="${s}" hidden><td>${seite} ${name(def)}</td><td>${O.feld(`f-${k}-${s}-lat`)}</td>
             <td><input type="checkbox" id="f-${k}-${s}-fehlt"></td><td><input type="checkbox" id="f-${k}-${s}-a"></td>
@@ -878,7 +899,10 @@ if (typeof module !== 'undefined') module.exports = GBS;
 
       $('sensibel').innerHTML = Object.entries(GBS.SENSIBEL).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
         const p = `s-${k}-${s}`;
-        return O.block(`s-${k}`, s, `Sensibel ${name(def)}`, O.gebiete(p, [{ id: 'w', label: 'Messung' }], SENS_SPALTEN, `n-${p}`));
+        const sz = O.SENSIBEL_ZEILEN[k];
+        const normZeile = sz.zeilen.find(([z]) => z === sz.norm)[1];
+        return O.block(`s-${k}`, s, `Sensorisch ${name(def)}`, O.gebiete(p, sz.zeilen.map(([id, label]) => ({ id, label })),
+          SENS_SPALTEN, `n-${p}`, sz.zeilen.length > 1 ? `Norm (${normZeile.replace('Handgel - ', '')})` : 'Norm'));
       })).join('');
       O.zeigeBloecke();
     }
@@ -908,7 +932,11 @@ if (typeof module !== 'undefined') module.exports = GBS;
 
     // ---------- Eingabe lesen (nur ausgewählte Nerven) ----------
 
+    // Hinweise der Eingabe, z. B. wenn eine andere sensible Ableitung als die Normzeile ausgewertet wird
+    let sensHinweise = [];
+
     function leseEingabe() {
+      sensHinweise = [];
       const e = {
         alter: O.lies('alter'), groesse: O.lies('groesse'), tag: O.lies('tag'), kts: $('kts').checked,
         filter: parseInt($('filter').value, 10), motorisch: {}, sensibel: {},
@@ -926,7 +954,9 @@ if (typeof module !== 'undefined') module.exports = GBS;
       Object.keys(GBS.SENSIBEL).forEach((k) => O.SEITEN.forEach(([s]) => {
         if (!O.aktiv(`s-${k}`, s)) return;
         const p = `s-${k}-${s}`;
-        e.sensibel[`${k}-${s}`] = { amp: O.lies(`${p}-w-amp`), nlg: O.lies(`${p}-w-nlg`) };
+        const w = O.sensWerte(p, k, `${s === 're' ? 'Rechts' : 'Links'} Sensorisch ${name(GBS.SENSIBEL[k])}`);
+        e.sensibel[`${k}-${s}`] = { amp: w.amp, nlg: w.nlg };
+        if (w.hinweis) sensHinweise.push(w.hinweis);
       }));
       return e;
     }
@@ -957,6 +987,7 @@ if (typeof module !== 'undefined') module.exports = GBS;
       const eingabe = leseEingabe();
       zeigeNormen(eingabe);
       const erg = GBS.werteAus(eingabe, NORMWERTE);
+      erg.pruefhinweise.push(...sensHinweise);
       $('warnungen').innerHTML = erg.warnungen.map((w) => `<div class="warnung">${w}</div>`).join('');
       $('pruefhinweise').innerHTML = erg.pruefhinweise.length
         ? `<div class="pruefhinweise"><strong>Prüfhinweise</strong><ul>${erg.pruefhinweise.map((h) => `<li>${h}</li>`).join('')}</ul></div>`
