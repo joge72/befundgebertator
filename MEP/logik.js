@@ -26,7 +26,7 @@ const MEP = (function () {
     ueberschrift: 'MEP-Programm:',
     abschnitt: 'Motorisch evozierte Potentiale:',
     verlaengert: (muskel, wert) => `Nach transkranieller Magnetstimulation und Ableitung über dem ${muskel} findet sich eine verlängerte zentralmotorische Leitungszeit von ${zahl(wert, 2)} ms.`,
-    keinMep: (muskel) => `Nach transkranieller Magnetstimulation ist über dem ${muskel} kein motorisch evoziertes Potential ableitbar.`,
+    keinMep: (muskel) => `Nach transkranieller Magnetstimulation und Ableitung über dem ${muskel} sind keine Potentiale ableitbar.`,
     normal: (muskeln) => (muskeln.length > 1
       ? `Bei Ableitung über ${undListe(muskeln.map((m) => `dem ${m}`))} sind die zentralmotorischen Leitungszeiten regelrecht.`
       : `Bei Ableitung über dem ${muskeln[0]} ist die zentralmotorische Leitungszeit regelrecht.`),
