@@ -8,7 +8,10 @@ Text aus Fotos (iPhone-Texterkennung) getestet.
 Aus Fotos bekannt (Oktober 2026): motorische Tabellen (Lat, Amp, Dur_neg, Dur_ges, Stim; Segmente mit Dist,
 NLG, Amp Diff, Temp), sensorische Tabellen pro Finger (Dist, Lat, Amp, NLG, Stim) und die F-Antwort
 (min/mitt/max F Lat, min F-M Lat, #F, F%). Die Eingabemasken verwenden bereits diese Beschriftungen.
-Offen: wie der Text beim Kopieren direkt aus dem Programm aussieht (Beispiel kopieren und in den Chat einfügen).
+PDF-Export „NC Data“ (aus der XML-Datei des Programms, über „Microsoft Print to PDF“): Text ist sauber
+zeilenweise lesbar (Nerv, Seite, Gebiet/Segment, Lat, CV, F-M Lat). Es fehlen aber Amp (motorisch und
+sensorisch), Dur_neg, die sensible Latenz und die minimale F-Latenz. Offen: Lässt sich die Berichtsvorlage
+so einstellen, dass diese Spalten mit exportiert werden? Lässt sich statt des PDFs die XML-Datei speichern?
 
 ## Später überdenken
 - CIDP: strenge Auslegung von Tabelle 2 (dasselbe Kriterium in zwei Nerven) – bei GBS wird inzwischen
