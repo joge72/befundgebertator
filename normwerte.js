@@ -92,6 +92,7 @@ const NORMWERTE = {
     },
   },
   sensibel: {
+    // Handgelenk – Dig II; gilt im Labor auch für Dig III
     medianus: {
       amp: 6.9,
       nlg: [

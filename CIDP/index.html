@@ -137,9 +137,9 @@
       $('sensibel').innerHTML = Object.entries(CIDP.SENSIBEL).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
         const p = `s-${k}-${s}`;
         const sz = O.SENSIBEL_ZEILEN[k];
-        const normZeile = sz.zeilen.find(([z]) => z === sz.norm)[1];
+        const normZeile = sz.norm.map((n) => sz.zeilen.find(([z]) => z === n)[1].replace('Handgel - ', '')).join('/');
         return O.block(`s-${k}`, s, `Sensorisch ${name(def)}`, O.gebiete(p, sz.zeilen.map(([id, label]) => ({ id, label })),
-          SENS_SPALTEN, `n-${p}`, sz.zeilen.length > 1 ? `Norm (${normZeile.replace('Handgel - ', '')})` : 'Norm'));
+          SENS_SPALTEN, `n-${p}`, sz.zeilen.length > 1 ? `Norm (${normZeile})` : 'Norm'));
       })).join('');
       O.zeigeBloecke();
     }

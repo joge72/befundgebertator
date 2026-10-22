@@ -22,7 +22,7 @@ const PLEXUS = (function () {
     radSup: { name: 'R. superficialis n. radialis', plexus: 'brachialis', faszikel: ['posterior'], trunci: ['superior'], norm: 'radialis' },
     medD1: { name: 'N. medianus (D I)', plexus: 'brachialis', faszikel: ['lateralis'], trunci: ['superior'] },
     medD2: { name: 'N. medianus (D II)', plexus: 'brachialis', faszikel: ['lateralis'], trunci: ['superior', 'medius'], norm: 'medianus' },
-    medD3: { name: 'N. medianus (D III)', plexus: 'brachialis', faszikel: ['lateralis'], trunci: ['medius'] },
+    medD3: { name: 'N. medianus (D III)', plexus: 'brachialis', faszikel: ['lateralis'], trunci: ['medius'], norm: 'medianus' },
     medD4: { name: 'N. medianus (D IV)', plexus: 'brachialis', faszikel: ['medialis'], trunci: ['medius', 'inferior'] },
     ulnD4: { name: 'N. ulnaris (D IV)', plexus: 'brachialis', faszikel: ['medialis'], trunci: ['inferior'] },
     ulnD5: { name: 'N. ulnaris (D V)', plexus: 'brachialis', faszikel: ['medialis'], trunci: ['inferior'], norm: 'ulnaris' },

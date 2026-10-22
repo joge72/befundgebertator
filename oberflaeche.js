@@ -13,12 +13,13 @@ const OBERFLAECHE = (function () {
   };
 
   // Sensible Ableitungen wie in der Gerätesoftware (Zeilen in der Reihenfolge des Geräts).
-  // norm: Zeile, für die der Normwert gilt; ausgewertet wird sie, sonst die erste gefüllte Zeile.
+  // norm: Zeilen, für die der Normwert gilt (Medianus Dig II und Dig III mit denselben Werten);
+  // ausgewertet wird die erste gefüllte davon, sonst die erste gefüllte Zeile mit Hinweis.
   const SENSIBEL_ZEILEN = {
-    medianus: { zeilen: [['d3', 'Handgel - Dig III'], ['d1', 'Handgel - Dig I'], ['d2', 'Handgel - Dig II']], norm: 'd2' },
-    ulnaris: { zeilen: [['d4', 'Handgel - Dig IV'], ['d5', 'Handgel - Dig V']], norm: 'd5' },
-    radialis: { zeilen: [['w', 'R. superficialis']], norm: 'w' },
-    suralis: { zeilen: [['w', 'Knöchel - u. Wadenmitte']], norm: 'w' },
+    medianus: { zeilen: [['d3', 'Handgel - Dig III'], ['d1', 'Handgel - Dig I'], ['d2', 'Handgel - Dig II']], norm: ['d3', 'd2'] },
+    ulnaris: { zeilen: [['d4', 'Handgel - Dig IV'], ['d5', 'Handgel - Dig V']], norm: ['d5'] },
+    radialis: { zeilen: [['w', 'R. superficialis']], norm: ['w'] },
+    suralis: { zeilen: [['w', 'Knöchel - u. Wadenmitte']], norm: ['w'] },
   };
 
   // Werte der ausgewerteten sensiblen Zeile und ein Hinweis, wenn sie nicht die Normzeile ist
@@ -26,10 +27,10 @@ const OBERFLAECHE = (function () {
     const def = SENSIBEL_ZEILEN[nerv];
     const werte = (id) => ({ amp: lies(`${praefix}-${id}-amp`), nlg: lies(`${praefix}-${id}-nlg`) });
     const gefuellt = (id) => { const w = werte(id); return w.amp !== null || w.nlg !== null; };
-    const id = gefuellt(def.norm) ? def.norm : (def.zeilen.map(([z]) => z).find(gefuellt) || def.norm);
+    const id = def.norm.find(gefuellt) || def.zeilen.map(([z]) => z).find(gefuellt) || def.norm[0];
     const zeile = (z) => def.zeilen.find(([k]) => k === z)[1];
-    const hinweis = id !== def.norm && gefuellt(id)
-      ? `${nervName}: Normwert gilt für ${zeile(def.norm)}, ausgewertet wurde ${zeile(id)}` : null;
+    const hinweis = !def.norm.includes(id) && gefuellt(id)
+      ? `${nervName}: Normwert gilt für ${def.norm.map(zeile).join(' bzw. ')}, ausgewertet wurde ${zeile(id)}` : null;
     return { ...werte(id), hinweis };
   }
   const kurz = (name) => KURZ[name] || name;
