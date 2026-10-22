@@ -346,11 +346,16 @@ const OBERFLAECHE = (function () {
     return abschnitte.zweiSD.length ? abschnitte.zweiSD : abschnitte.refDev;
   }
 
-  // Werte einer Exportzeile: motorisch distal [Lat], Segment [Lat, NLG];
-  // sensorisch nur eindeutig bei einem Wert (NLG) oder drei Werten (Latenz, Amp, NLG)
+  // Werte einer Exportzeile. Leere Spalten fallen im kopierten Text weg, deshalb wird nur übernommen,
+  // was anhand der Anzahl eindeutig ist; alles andere bleibt leer und wird gemeldet:
+  // motorisch distal [Lat] oder [Lat, F-M Lat], Segment [Lat] oder [Lat, NLG];
+  // sensorisch [NLG] oder [Latenz, Amp, NLG].
   function exportWerte(nerv, zeile) {
     const w = zeile.werte;
-    if (nerv.art === 'motorisch') return { lat: w[0], nlg: zeile.label.includes(' - ') ? null : (w[1] ?? null) };
+    if (nerv.art === 'motorisch') {
+      if (zeile.label.includes(' - ')) return w.length <= 2 ? { lat: w[0] } : null;
+      return w.length <= 2 ? { lat: w[0], nlg: w[1] ?? null } : null;
+    }
     if (w.length === 1) return { nlg: w[0] };
     if (w.length === 3) return { amp: w[1], nlg: w[2] };
     return null;
