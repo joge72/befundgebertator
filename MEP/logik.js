@@ -12,7 +12,6 @@ const MEP = (function () {
   const SEITE_LANG = { re: 'rechts', li: 'links' };
 
   const zahl = (x, stellen = 1) => x.toLocaleString('de-DE', { maximumFractionDigits: stellen });
-  const prozent = (x) => Math.round(x * 100) + ' %';
   const da = (x) => x !== null && x !== undefined && !Number.isNaN(x);
   const undListe = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} und ${xs[xs.length - 1]}` : xs[0]);
 
@@ -26,7 +25,7 @@ const MEP = (function () {
   const T = {
     ueberschrift: 'MEP-Programm:',
     abschnitt: 'Motorisch evozierte Potentiale:',
-    verlaengert: (muskel, wert, p) => `Nach transkranieller Magnetstimulation und Ableitung über dem ${muskel} findet sich eine verlängerte zentralmotorische Leitungszeit von ${zahl(wert, 2)} ms (${prozent(p)} über dem Upper Limit of Normal).`,
+    verlaengert: (muskel, wert) => `Nach transkranieller Magnetstimulation und Ableitung über dem ${muskel} findet sich eine verlängerte zentralmotorische Leitungszeit von ${zahl(wert, 2)} ms.`,
     keinMep: (muskel) => `Nach transkranieller Magnetstimulation ist über dem ${muskel} kein motorisch evoziertes Potential ableitbar.`,
     normal: (muskeln) => (muskeln.length > 1
       ? `Die zentralmotorischen Leitungszeiten ${undListe(muskeln.map((m) => `zum ${m}`))} sind regelrecht.`
@@ -57,7 +56,6 @@ const MEP = (function () {
           m.zml = null;
         } else {
           m.pathologisch = m.zml > uln;
-          m.ueber = m.zml / uln - 1;
         }
       }
       messungen.push(m);
@@ -68,7 +66,7 @@ const MEP = (function () {
   function befundtext(eingabe, erg) {
     const z = [T.ueberschrift, '', T.abschnitt];
     erg.messungen.filter((m) => m.pathologisch).forEach((m) => {
-      z.push(m.keinMep ? T.keinMep(m.muskel) : T.verlaengert(m.muskel, m.zml, m.ueber));
+      z.push(m.keinMep ? T.keinMep(m.muskel) : T.verlaengert(m.muskel, m.zml));
     });
     const normal = erg.messungen.filter((m) => !m.pathologisch && m.zml !== null).map((m) => m.muskel);
     if (normal.length) z.push(T.normal(normal));
