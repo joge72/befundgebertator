@@ -111,6 +111,11 @@ const NORMWERTE = {
     cutaneusFemorisLateralis: { amp: 4.0, nlg: 43.0 },
     peronaeusSuperficialis: { amp: 10.0, nlg: 40.0 },
   },
+  // MEP-Rechner (Excel): obere Normgrenze der zentralmotorischen Leitungszeit (ms)
+  mep: {
+    adm: { zml: 7.86 },
+    ah: { zml: 17.99 },
+  },
   // Blatt 5/7 und Ergänzung: Leitzeit nach Stimulation am Erb'schen Punkt (bzw. N. femoralis
   // in der Leiste) als obere Normgrenze je Distanz (cm), SPA als untere Normgrenze (mV).
   // Zwischen den Distanzen wird linear interpoliert.

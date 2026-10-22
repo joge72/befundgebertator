@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MEP-Befundgenerator</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Befunde">
+  <meta name="theme-color" content="#2b6cb0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px auto; max-width: 1100px; padding: 0 16px; color: #222; }
+    h1 { font-size: 1.5em; margin-bottom: 4px; }
+    h2 { font-size: 1.15em; margin: 28px 0 8px; border-bottom: 2px solid #2b6cb0; padding-bottom: 4px; }
+    h3 { font-size: 1em; margin: 16px 0 6px; }
+    .zurueck { display: inline-block; margin-bottom: 8px; color: #2b6cb0; text-decoration: none; }
+    .untertitel { color: #555; margin-top: 0; }
+    .zeile { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+    .zeile label { white-space: nowrap; }
+    table { border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; font-size: 0.92em; }
+    th { background: #edf2f7; }
+    td.norm { color: #555; white-space: nowrap; }
+    input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
+    select { font-size: 16px; }
+    #matrix { min-width: 0; overflow-x: auto; }
+    .ja { color: #2f855a; font-weight: bold; text-align: center; }
+    .nein { color: #bbb; text-align: center; }
+    .pruefhinweise { border-left: 4px solid #2b6cb0; background: #ebf4ff; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .pruefhinweise ul { margin: 4px 0 0; padding-left: 18px; }
+    .warnung { background: #fff8e1; border-left: 4px solid #d69e2e; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .klein { font-size: 0.85em; color: #555; }
+    textarea { width: 100%; height: 360px; font-family: Arial, sans-serif; font-size: 0.95em; box-sizing: border-box; }
+    button { margin: 10px 8px 0 0; padding: 8px 16px; cursor: pointer; }
+    @media (max-width: 500px) {
+      input[type=text] { width: 54px; }
+      th, td { padding: 3px 4px; }
+    }
+    .auswahl-gruppe { margin: 6px 0 10px; }
+    .auswahl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }
+    .auswahl label { white-space: nowrap; }
+    .bloecke { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
+    .block { min-width: 0; overflow-x: auto; }
+    .block table { margin-bottom: 6px; }
+    tr.normzeile td { background: #f7fafc; }
+    .leer { color: #555; font-size: 0.92em; }
+    td.pathologisch { color: #c53030; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <a class="zurueck" href="../">← Übersicht</a>
+  <h1>MEP-Befundgenerator</h1>
+  <p class="untertitel">Motorisch evozierte Potentiale: zentralmotorische Leitungszeit (ZML) nach der F-Wellen-Methode,
+    ZML = Leitzeit MEP − (minimale F-Wellen-Latenz + DML − 1) / 2.</p>
+
+  <h2>Untersuchte Muskeln</h2>
+  <div id="auswahl"></div>
+
+  <h2>Motorisch evozierte Potentiale</h2>
+  <div class="bloecke" id="messungen" data-bereich="messungen"></div>
+  <p class="leer" data-leer="messungen">Oben unter „Untersuchte Muskeln“ auswählen.</p>
+
+  <h2>Befund</h2>
+  <div id="warnungen"></div>
+  <div id="pruefhinweise"></div>
+  <textarea id="ausgabe" readonly></textarea>
+  <button id="kopieren">Befund kopieren</button>
+  <button id="leeren">Alle Felder leeren</button>
+
+  <script src="../normwerte.js"></script>
+  <script src="../oberflaeche.js"></script>
+  <script src="logik.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const O = OBERFLAECHE;
+    const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+    // "M. abductor digiti minimi" -> "Abductor digiti minimi"
+    const name = (def) => { const n = def.muskel.replace(/^M\. /, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+
+    // ---------- Formular aufbauen ----------
+
+    function baue() {
+      O.baueAuswahl('auswahl', [
+        { titel: 'MEP', bloecke: Object.entries(MEP.ZIELE).map(([k, d]) => ({ id: `mep-${k}`, name: name(d) })) },
+      ], 'mep-auswahl', aktualisiere);
+
+      $('messungen').innerHTML = Object.entries(MEP.ZIELE).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
+        const p = `mep-${k}-${s}`;
+        const zeile = (label, key, norm) => `<tr><td>${label}</td><td>${O.feld(`${p}-${key}`)}</td><td class="norm">${norm}</td></tr>`;
+        return O.block(`mep-${k}`, s, `MEP ${name(def)}`, `<table>
+          <tr><th></th><th>Wert</th><th>Norm</th></tr>
+          ${zeile('Leitzeit MEP [ms]', 'leitzeit', '')}
+          ${zeile(`DML ${def.nerv} [ms]`, 'dml', '')}
+          ${zeile('min. F-Wellen-Latenz [ms]', 'f', '')}
+          <tr><td>kein MEP ableitbar</td><td><input type="checkbox" id="${p}-kein"></td><td></td></tr>
+          <tr class="normzeile"><td><strong>Zentrale mot. Leitzeit [ms]</strong></td><td id="${p}-zml">–</td>
+            <td class="norm">≤ ${zahl(NORMWERTE.mep[k].zml)} ms</td></tr>
+        </table>`);
+      })).join('');
+      O.zeigeBloecke();
+    }
+
+    // ---------- Eingabe lesen (nur ausgewählte Muskeln) ----------
+
+    function leseEingabe() {
+      const e = {};
+      Object.keys(MEP.ZIELE).forEach((k) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`mep-${k}`, s)) return;
+        const p = `mep-${k}-${s}`;
+        e[`${k}-${s}`] = { leitzeit: O.lies(`${p}-leitzeit`), dml: O.lies(`${p}-dml`), fLatenz: O.lies(`${p}-f`), keinMep: $(`${p}-kein`).checked };
+      }));
+      return e;
+    }
+
+    // ---------- Ergebnis ----------
+
+    function aktualisiere() {
+      const eingabe = leseEingabe();
+      const erg = MEP.werteAus(eingabe, NORMWERTE);
+      // berechnete ZML im jeweiligen Block anzeigen
+      Object.keys(MEP.ZIELE).forEach((k) => O.SEITEN.forEach(([s]) => O.setze(`mep-${k}-${s}-zml`, '–')));
+      erg.messungen.forEach((m) => {
+        const el = $(`mep-${m.ziel}-${m.seite}-zml`);
+        el.textContent = m.keinMep ? 'kein MEP' : m.zml !== null ? zahl(m.zml) : '–';
+        el.className = m.pathologisch ? 'pathologisch' : '';
+      });
+      $('pruefhinweise').innerHTML = erg.pruefhinweise.length
+        ? `<div class="pruefhinweise"><strong>Prüfhinweise</strong><ul>${erg.pruefhinweise.map((h) => `<li>${h}</li>`).join('')}</ul></div>`
+        : '';
+      $('ausgabe').value = erg.messungen.length ? MEP.befundtext(eingabe, erg) : '';
+    }
+
+    baue();
+    document.addEventListener('input', aktualisiere);
+    document.addEventListener('change', aktualisiere);
+    $('kopieren').addEventListener('click', () => {
+      navigator.clipboard.writeText($('ausgabe').value).catch(() => { $('ausgabe').select(); document.execCommand('copy'); });
+    });
+    $('leeren').addEventListener('click', () => {
+      O.leeren();
+      aktualisiere();
+    });
+    aktualisiere();
+
+    // Offline-Nutzung als Web-App (nur über https, nicht als lokale Datei)
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('../sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

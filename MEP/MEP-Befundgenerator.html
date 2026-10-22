@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MEP-Befundgenerator</title>
+  <link rel="manifest" href="../manifest.json">
+  <link rel="apple-touch-icon" href="../icon-180.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Befunde">
+  <meta name="theme-color" content="#2b6cb0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px auto; max-width: 1100px; padding: 0 16px; color: #222; }
+    h1 { font-size: 1.5em; margin-bottom: 4px; }
+    h2 { font-size: 1.15em; margin: 28px 0 8px; border-bottom: 2px solid #2b6cb0; padding-bottom: 4px; }
+    h3 { font-size: 1em; margin: 16px 0 6px; }
+    .zurueck { display: inline-block; margin-bottom: 8px; color: #2b6cb0; text-decoration: none; }
+    .untertitel { color: #555; margin-top: 0; }
+    .zeile { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+    .zeile label { white-space: nowrap; }
+    table { border-collapse: collapse; margin-bottom: 8px; }
+    th, td { border: 1px solid #ccc; padding: 3px 8px; text-align: left; font-size: 0.92em; }
+    th { background: #edf2f7; }
+    td.norm { color: #555; white-space: nowrap; }
+    input[type=text] { width: 70px; padding: 2px 4px; font-size: 16px; }
+    select { font-size: 16px; }
+    #matrix { min-width: 0; overflow-x: auto; }
+    .ja { color: #2f855a; font-weight: bold; text-align: center; }
+    .nein { color: #bbb; text-align: center; }
+    .pruefhinweise { border-left: 4px solid #2b6cb0; background: #ebf4ff; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .pruefhinweise ul { margin: 4px 0 0; padding-left: 18px; }
+    .warnung { background: #fff8e1; border-left: 4px solid #d69e2e; padding: 6px 10px; margin: 4px 0; font-size: 0.92em; }
+    .klein { font-size: 0.85em; color: #555; }
+    textarea { width: 100%; height: 360px; font-family: Arial, sans-serif; font-size: 0.95em; box-sizing: border-box; }
+    button { margin: 10px 8px 0 0; padding: 8px 16px; cursor: pointer; }
+    @media (max-width: 500px) {
+      input[type=text] { width: 54px; }
+      th, td { padding: 3px 4px; }
+    }
+    .auswahl-gruppe { margin: 6px 0 10px; }
+    .auswahl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }
+    .auswahl label { white-space: nowrap; }
+    .bloecke { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 0 24px; }
+    .block { min-width: 0; overflow-x: auto; }
+    .block table { margin-bottom: 6px; }
+    tr.normzeile td { background: #f7fafc; }
+    .leer { color: #555; font-size: 0.92em; }
+    td.pathologisch { color: #c53030; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+  <h1>MEP-Befundgenerator</h1>
+  <p class="untertitel">Motorisch evozierte Potentiale: zentralmotorische Leitungszeit (ZML) nach der F-Wellen-Methode,
+    ZML = Leitzeit MEP − (minimale F-Wellen-Latenz + DML − 1) / 2.</p>
+
+  <h2>Untersuchte Muskeln</h2>
+  <div id="auswahl"></div>
+
+  <h2>Motorisch evozierte Potentiale</h2>
+  <div class="bloecke" id="messungen" data-bereich="messungen"></div>
+  <p class="leer" data-leer="messungen">Oben unter „Untersuchte Muskeln“ auswählen.</p>
+
+  <h2>Befund</h2>
+  <div id="warnungen"></div>
+  <div id="pruefhinweise"></div>
+  <textarea id="ausgabe" readonly></textarea>
+  <button id="kopieren">Befund kopieren</button>
+  <button id="leeren">Alle Felder leeren</button>
+
+  <script>
+// Normwerte für die CIDP-Auswertung.
+// Hier die laboreigenen Grenzwerte eintragen. null = noch kein Wert,
+// die davon abhängigen Kriterien werden dann nicht ausgewertet.
+//
+// Motorisch:
+//   dml      obere Normgrenze distal-motorische Latenz (ms)
+//   amp      untere Normgrenze distale CMAP-Amplitude, negativer Gipfel (mV)
+//   nlg      untere Normgrenze motorische NLG (m/s), entweder eine Zahl für alle
+//            Segmente oder eine Tabelle nach Alter. Jede Zeile gilt bis
+//            einschließlich "alterBis", die erste Zeile ab "alterVon". Außerhalb
+//            dieses Bereichs wird mit der nächstliegenden Zeile gerechnet und
+//            gewarnt. Die Segmente heißen nach dem
+//            proximalen Stimulationsort:
+//              medianus  ell = Handgelenk–Ellenbogen, ax = Ellenbogen–Axilla, erb = Axilla–Erb
+//              ulnaris   ue = Handgelenk–unterhalb Sulcus, oe = über den Sulcus,
+//                        ax = oberhalb Sulcus–Axilla, erb = Axilla–Erb
+//              peroneus  fk = Fußrist–unterhalb Fibulaköpfchen, kk = über das Fibulaköpfchen
+//              tibialis  kk = Innenknöchel–Kniekehle
+//   fLatenz  obere Normgrenze minimale F-Wellen-Latenz (ms) bei distaler
+//            Stimulation, als Zahl oder Tabelle nach Körpergröße (von "groesseVon"
+//            bis einschließlich "groesseBis" cm, außerhalb wie beim Alter)
+//
+// Sensibel:
+//   amp      untere Normgrenze SNAP-Amplitude (µV)
+//   nlg      untere Normgrenze sensible NLG (m/s), als Zahl oder Tabelle nach
+//            Alter ({ alterBis, wert })
+//
+// Die Grenzwerte für die distale CMAP-Dauer (Kriterium g) stehen in der
+// Leitlinie selbst und sind in logik.js hinterlegt.
+
+const NORMWERTE = {
+  motorisch: {
+    // Blatt 1/7, Normwerte modifiziert nach Stöhr & Ludin (Dr. Kranz, Dr. Zebenholzer)
+    medianus: {
+      dml: 4,
+      amp: 4,
+      nlg: [
+        { alterVon: 20, alterBis: 30, ell: 51, ax: 51, erb: 53 },
+        { alterBis: 40, ell: 49, ax: 49, erb: 53 },
+        { alterBis: 50, ell: 46, ax: 46, erb: 53 },
+        { alterBis: 60, ell: 44, ax: 44, erb: 53 },
+        { alterBis: 70, ell: 42, ax: 42, erb: null },
+      ],
+      fLatenz: 31.0,
+    },
+    // Blatt 2/7
+    ulnaris: {
+      dml: 3,
+      amp: 4,
+      nlg: [
+        { alterVon: 20, alterBis: 30, ue: 45, oe: 40, ax: 46, erb: 58 },
+        { alterBis: 40, ue: 44, oe: 40, ax: 45, erb: 58 },
+        { alterBis: 50, ue: 44, oe: 39, ax: 44, erb: 58 },
+        { alterBis: 60, ue: 43, oe: 39, ax: 43, erb: null },
+        { alterBis: 70, ue: 42, oe: 38, ax: 42, erb: null },
+      ],
+      fLatenz: 31.0, // Stimulation am Ellenbogen: 26,2 ms (bestätigt, derzeit nicht verwendet)
+    },
+    // Blatt 3/7
+    peroneus: {
+      dml: 5,
+      amp: 3,
+      nlg: [
+        { alterVon: 20, alterBis: 30, fk: 43, kk: 43 },
+        { alterBis: 40, fk: 42, kk: 42 },
+        { alterBis: 50, fk: 40, kk: 40 },
+        { alterBis: 60, fk: 39, kk: 39 },
+        { alterBis: 70, fk: 38, kk: 38 },
+      ],
+      fLatenz: [
+        { groesseVon: 147, groesseBis: 160, wert: 52.7 },
+        { groesseBis: 175, wert: 56.9 },
+        { groesseBis: 193, wert: 61.2 },
+      ],
+    },
+    // Blatt 4/7
+    tibialis: {
+      dml: 6,
+      amp: 3,
+      nlg: [
+        { alterVon: 20, alterBis: 30, kk: 42 },
+        { alterBis: 40, kk: 40 },
+        { alterBis: 50, kk: 39 },
+        { alterBis: 60, kk: 37 },
+        { alterBis: 70, kk: 35 },
+      ],
+      fLatenz: [
+        { groesseVon: 147, groesseBis: 160, wert: 54.5 },
+        { groesseBis: 175, wert: 58.0 },
+        { groesseBis: 193, wert: 63.6 },
+      ],
+    },
+  },
+  sensibel: {
+    medianus: {
+      amp: 6.9,
+      nlg: [
+        { alterVon: 20, alterBis: 30, wert: 53 },
+        { alterBis: 40, wert: 50 },
+        { alterBis: 50, wert: 47 },
+        { alterBis: 60, wert: 44 },
+        { alterBis: 70, wert: 41 },
+      ],
+    },
+    // Blatt 2/7 (SNAP-Amplitude handschriftlich von 5,8 auf 7 korrigiert, bestätigt)
+    ulnaris:  { amp: 7, nlg: 44 },
+    // Blatt 7/7
+    radialis: { amp: 16.0, nlg: 55.0 },
+    suralis:  { amp: 10.0, nlg: 40.6 },
+    cutaneusAntebrachiiLateralis: { amp: 12.0, nlg: 57.0 },
+    cutaneusFemorisLateralis: { amp: 4.0, nlg: 43.0 },
+    peronaeusSuperficialis: { amp: 10.0, nlg: 40.0 },
+  },
+  // MEP-Rechner (Excel): obere Normgrenze der zentralmotorischen Leitungszeit (ms)
+  mep: {
+    adm: { zml: 7.86 },
+    ah: { zml: 17.99 },
+  },
+  // Blatt 5/7 und Ergänzung: Leitzeit nach Stimulation am Erb'schen Punkt (bzw. N. femoralis
+  // in der Leiste) als obere Normgrenze je Distanz (cm), SPA als untere Normgrenze (mV).
+  // Zwischen den Distanzen wird linear interpoliert.
+  proximal: {
+    suprascapularisSupraspinatus: { leitzeit: [{ distanz: 8.5, wert: 3.3 }, { distanz: 10.5, wert: 3.4 }], amp: null },
+    suprascapularisInfraspinatus: { leitzeit: [{ distanz: 14.0, wert: 4.4 }, { distanz: 17.0, wert: 4.4 }], amp: null },
+    axillaris: { leitzeit: [{ distanz: 15.5, wert: 5.3 }], amp: 10 },
+    musculocutaneus: { leitzeit: [{ distanz: 20.0, wert: 5.8 }, { distanz: 24.0, wert: 5.9 }, { distanz: 28.0, wert: 6.0 }], amp: 5 },
+    radialisTriceps: { leitzeit: [{ distanz: 21.5, wert: 5.5 }, { distanz: 26.5, wert: 5.9 }, { distanz: 31.5, wert: 6.3 }], amp: 8 },
+    femoralis: { leitzeit: [{ distanz: 14.0, wert: 4.6 }, { distanz: 30.0, wert: 7.2 }], amp: null },
+  },
+};
+
+if (typeof module !== 'undefined') module.exports = NORMWERTE;
+
+</script>
+  <script>
+// Gemeinsame Bausteine der Eingabemasken: Auswahl der untersuchten Nerven und
+// Tabellen im Aufbau der Gerätesoftware (Gebiete und Segmente je Nerv und Seite).
+
+const OBERFLAECHE = (function () {
+  const $ = (id) => document.getElementById(id);
+  const SEITEN = [['re', 'Rechts'], ['li', 'Links']];
+
+  // Bezeichnungen der Stimulationsorte wie in der Gerätesoftware
+  const KURZ = {
+    Handgelenk: 'Handgel', Ellenbogen: 'Ellbogen', 'unterhalb Ellenbogen': 'unter Ellbogen',
+    'oberhalb Ellenbogen': 'über Ellbogen', Erb: 'Plexus', 'unterhalb Fibulaköpfchen': 'unter Fibulaköpfchen',
+    'oberhalb Fibulaköpfchen': 'über Fibulaköpfchen',
+  };
+  const kurz = (name) => KURZ[name] || name;
+
+  function lies(id) {
+    const el = $(id);
+    if (!el || el.value.trim() === '') return null;
+    const v = parseFloat(el.value.replace(',', '.'));
+    return Number.isNaN(v) ? null : v;
+  }
+
+  const feld = (id) => `<input type="text" inputmode="decimal" id="${id}">`;
+
+  // ---------- Auswahl der untersuchten Nerven ----------
+
+  // gruppen: [{ titel, bloecke: [{ id, name }] }]; je Block gibt es ein Kästchen für rechts und links.
+  // Die Auswahl wird im Browser gemerkt (nur auf diesem Gerät).
+  function baueAuswahl(container, gruppen, speicherName, beiAenderung) {
+    $(container).innerHTML = gruppen.map((g) => `<div class="auswahl-gruppe"><strong>${g.titel}</strong>
+      <div class="auswahl">${g.bloecke.flatMap((b) => SEITEN.map(([s, seite]) =>
+        `<label><input type="checkbox" id="w-${b.id}-${s}" data-auswahl="${b.id}-${s}"> ${seite} ${b.name}</label>`)).join('')}</div></div>`).join('');
+    let gemerkt = [];
+    try { gemerkt = JSON.parse(localStorage.getItem(speicherName) || '[]'); } catch (e) { gemerkt = []; }
+    gemerkt.forEach((k) => { const el = document.querySelector(`[data-auswahl="${k}"]`); if (el) el.checked = true; });
+    $(container).addEventListener('change', () => {
+      const aktiv = [...document.querySelectorAll('[data-auswahl]')].filter((el) => el.checked).map((el) => el.dataset.auswahl);
+      try { localStorage.setItem(speicherName, JSON.stringify(aktiv)); } catch (e) { /* ohne Speicher weiter */ }
+      zeigeBloecke();
+      beiAenderung();
+    });
+  }
+
+  function aktiv(blockId, seite) {
+    const el = $(`w-${blockId}-${seite}`);
+    return !!el && el.checked;
+  }
+
+  function zeigeBloecke() {
+    document.querySelectorAll('[data-block]').forEach((el) => { el.hidden = !aktiv(el.dataset.block, el.dataset.seite); });
+    document.querySelectorAll('[data-leer]').forEach((el) => {
+      el.hidden = !!document.querySelector(`[data-bereich="${el.dataset.leer}"] [data-block]:not([hidden])`);
+    });
+  }
+
+  // ---------- Tabellen ----------
+
+  // Block für Nerv und Seite mit Überschrift wie in der Gerätesoftware ("Rechts Motorisch Medianus")
+  function block(blockId, seite, titel, inhalt) {
+    const s = SEITEN.find(([k]) => k === seite)[1];
+    return `<div class="block" data-block="${blockId}" data-seite="${seite}" hidden><h3>${s} ${titel}</h3>${inhalt}</div>`;
+  }
+
+  // Gebiete: Zeilen = Stimulationsorte, Spalten = Messgrößen; Normwerte in der letzten Zeile
+  function gebiete(praefix, zeilen, spalten, normId) {
+    const kopf = `<tr><th>Gebiete</th>${spalten.map((s) => `<th>${s.label}</th>`).join('')}</tr>`;
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td>${spalten.map((s) =>
+      `<td>${feld(`${praefix}-${z.id}-${s.key}`)}</td>`).join('')}</tr>`).join('');
+    const norm = normId ? `<tr class="normzeile"><td>Norm</td>${spalten.map((s) => `<td class="norm" id="${normId}-${s.key}"></td>`).join('')}</tr>` : '';
+    return `<table>${kopf}${rumpf}${norm}</table>`;
+  }
+
+  // Segmente: NLG je Segment (die Distanzen sind in der Gerätesoftware hinterlegt)
+  function segmente(praefix, zeilen, normId) {
+    const kopf = '<tr><th>Segmente</th><th>NLG [m/s]</th><th>Norm</th></tr>';
+    const rumpf = zeilen.map((z) => `<tr><td>${z.label}</td><td>${feld(`${praefix}-${z.id}-nlg`)}</td>
+      <td class="norm" id="${normId}-${z.id}"></td></tr>`).join('');
+    return `<table>${kopf}${rumpf}</table>`;
+  }
+
+  const nlg = (praefix, seg) => lies(`${praefix}-${seg.id}-nlg`);
+
+  function setze(id, text) { const el = $(id); if (el) el.textContent = text; }
+
+  function leeren() {
+    document.querySelectorAll('input[type=text]').forEach((el) => { el.value = ''; });
+    document.querySelectorAll('input[type=checkbox]:not([data-auswahl])').forEach((el) => { el.checked = false; });
+  }
+
+  return { SEITEN, kurz, lies, feld, baueAuswahl, aktiv, zeigeBloecke, block, gebiete, segmente, nlg, setze, leeren };
+})();
+
+</script>
+  <script>
+// Auswertung motorisch evozierter Potentiale nach dem MEP-Rechner des Labors (Excel).
+// Zentralmotorische Leitungszeit (ZML) nach der F-Wellen-Methode:
+//   ZML = Leitzeit MEP − (minimale F-Wellen-Latenz + distal-motorische Latenz − 1) / 2
+// Der Abzug von 1 ms berücksichtigt die Umschaltzeit im Vorderhorn.
+
+const MEP = (function () {
+  const ZIELE = {
+    adm: { muskel: 'M. abductor digiti minimi', nerv: 'N. ulnaris', extremitaet: 'obere' },
+    ah: { muskel: 'M. abductor hallucis', nerv: 'N. tibialis', extremitaet: 'untere' },
+  };
+  const SEITEN = { re: 're.', li: 'li.' };
+  const SEITE_LANG = { re: 'rechts', li: 'links' };
+
+  const zahl = (x, stellen = 1) => x.toLocaleString('de-DE', { maximumFractionDigits: stellen });
+  const prozent = (x) => Math.round(x * 100) + ' %';
+  const da = (x) => x !== null && x !== undefined && !Number.isNaN(x);
+  const undListe = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} und ${xs[xs.length - 1]}` : xs[0]);
+
+  function zml(d) {
+    if (!da(d.leitzeit) || !da(d.dml) || !da(d.fLatenz)) return null;
+    return d.leitzeit - (d.fLatenz + d.dml - 1) / 2;
+  }
+
+  // ---------- Textbausteine ----------
+
+  const T = {
+    ueberschrift: 'MEP-Programm:',
+    abschnitt: 'Motorisch evozierte Potentiale:',
+    verlaengert: (muskel, wert, p) => `Nach transkranieller Magnetstimulation und Ableitung über dem ${muskel} findet sich eine verlängerte zentralmotorische Leitungszeit von ${zahl(wert, 2)} ms (${prozent(p)} über dem Upper Limit of Normal).`,
+    keinMep: (muskel) => `Nach transkranieller Magnetstimulation ist über dem ${muskel} kein motorisch evoziertes Potential ableitbar.`,
+    normal: (muskeln) => (muskeln.length > 1
+      ? `Die zentralmotorischen Leitungszeiten ${undListe(muskeln.map((m) => `zum ${m}`))} sind regelrecht.`
+      : `Die zentralmotorische Leitungszeit zum ${muskeln[0]} ist regelrecht.`),
+    beurteilungPath: (wege) => `Verlängerte bzw. fehlende zentralmotorische Leitung ${undListe(wege)}; vereinbar mit einer Läsion der kortikospinalen Bahn.`,
+    beurteilungNormal: 'Regelrechte zentralmotorische Leitungszeiten, kein Hinweis auf eine Läsion der kortikospinalen Bahn.',
+  };
+
+  // ---------- Auswertung ----------
+
+  function werteAus(eingabe, normwerte) {
+    const messungen = [];
+    const hinweise = [];
+    Object.entries(ZIELE).forEach(([ziel, def]) => Object.keys(SEITEN).forEach((seite) => {
+      const d = eingabe[`${ziel}-${seite}`];
+      if (!d || (!d.keinMep && ![d.leitzeit, d.dml, d.fLatenz].some(da))) return;
+      const uln = normwerte.mep[ziel].zml;
+      const muskel = `${def.muskel} ${SEITE_LANG[seite]}`;
+      const m = { ziel, seite, def, muskel, name: `${def.muskel} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
+      if (d.keinMep) {
+        m.pathologisch = true;
+      } else {
+        m.zml = zml(d);
+        if (m.zml === null) {
+          hinweise.push(`${m.name}: ZML nicht berechenbar, es fehlen Leitzeit MEP, DML oder F-Wellen-Latenz`);
+        } else if (m.zml <= 0) {
+          hinweise.push(`${m.name}: berechnete ZML ${zahl(m.zml, 2)} ms ist nicht plausibel, bitte Eingaben prüfen`);
+          m.zml = null;
+        } else {
+          m.pathologisch = m.zml > uln;
+          m.ueber = m.zml / uln - 1;
+        }
+      }
+      messungen.push(m);
+    }));
+    return { messungen, pruefhinweise: hinweise, warnungen: [] };
+  }
+
+  function befundtext(eingabe, erg) {
+    const z = [T.ueberschrift, '', T.abschnitt];
+    erg.messungen.filter((m) => m.pathologisch).forEach((m) => {
+      z.push(m.keinMep ? T.keinMep(m.muskel) : T.verlaengert(m.muskel, m.zml, m.ueber));
+    });
+    const normal = erg.messungen.filter((m) => !m.pathologisch && m.zml !== null).map((m) => m.muskel);
+    if (normal.length) z.push(T.normal(normal));
+
+    z.push('', 'Beurteilung:');
+    const path = erg.messungen.filter((m) => m.pathologisch);
+    if (path.length) {
+      const wege = [...new Set(path.map((m) => `zur ${m.def.extremitaet}n Extremität ${SEITE_LANG[m.seite]}`))];
+      z.push(T.beurteilungPath(wege));
+    } else if (normal.length) {
+      z.push(T.beurteilungNormal);
+    }
+    return z.join('\n');
+  }
+
+  return { ZIELE, SEITEN, zml, werteAus, befundtext };
+})();
+
+if (typeof module !== 'undefined') module.exports = MEP;
+
+</script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const O = OBERFLAECHE;
+    const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 2 });
+    // "M. abductor digiti minimi" -> "Abductor digiti minimi"
+    const name = (def) => { const n = def.muskel.replace(/^M\. /, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+
+    // ---------- Formular aufbauen ----------
+
+    function baue() {
+      O.baueAuswahl('auswahl', [
+        { titel: 'MEP', bloecke: Object.entries(MEP.ZIELE).map(([k, d]) => ({ id: `mep-${k}`, name: name(d) })) },
+      ], 'mep-auswahl', aktualisiere);
+
+      $('messungen').innerHTML = Object.entries(MEP.ZIELE).flatMap(([k, def]) => O.SEITEN.map(([s]) => {
+        const p = `mep-${k}-${s}`;
+        const zeile = (label, key, norm) => `<tr><td>${label}</td><td>${O.feld(`${p}-${key}`)}</td><td class="norm">${norm}</td></tr>`;
+        return O.block(`mep-${k}`, s, `MEP ${name(def)}`, `<table>
+          <tr><th></th><th>Wert</th><th>Norm</th></tr>
+          ${zeile('Leitzeit MEP [ms]', 'leitzeit', '')}
+          ${zeile(`DML ${def.nerv} [ms]`, 'dml', '')}
+          ${zeile('min. F-Wellen-Latenz [ms]', 'f', '')}
+          <tr><td>kein MEP ableitbar</td><td><input type="checkbox" id="${p}-kein"></td><td></td></tr>
+          <tr class="normzeile"><td><strong>Zentrale mot. Leitzeit [ms]</strong></td><td id="${p}-zml">–</td>
+            <td class="norm">≤ ${zahl(NORMWERTE.mep[k].zml)} ms</td></tr>
+        </table>`);
+      })).join('');
+      O.zeigeBloecke();
+    }
+
+    // ---------- Eingabe lesen (nur ausgewählte Muskeln) ----------
+
+    function leseEingabe() {
+      const e = {};
+      Object.keys(MEP.ZIELE).forEach((k) => O.SEITEN.forEach(([s]) => {
+        if (!O.aktiv(`mep-${k}`, s)) return;
+        const p = `mep-${k}-${s}`;
+        e[`${k}-${s}`] = { leitzeit: O.lies(`${p}-leitzeit`), dml: O.lies(`${p}-dml`), fLatenz: O.lies(`${p}-f`), keinMep: $(`${p}-kein`).checked };
+      }));
+      return e;
+    }
+
+    // ---------- Ergebnis ----------
+
+    function aktualisiere() {
+      const eingabe = leseEingabe();
+      const erg = MEP.werteAus(eingabe, NORMWERTE);
+      // berechnete ZML im jeweiligen Block anzeigen
+      Object.keys(MEP.ZIELE).forEach((k) => O.SEITEN.forEach(([s]) => O.setze(`mep-${k}-${s}-zml`, '–')));
+      erg.messungen.forEach((m) => {
+        const el = $(`mep-${m.ziel}-${m.seite}-zml`);
+        el.textContent = m.keinMep ? 'kein MEP' : m.zml !== null ? zahl(m.zml) : '–';
+        el.className = m.pathologisch ? 'pathologisch' : '';
+      });
+      $('pruefhinweise').innerHTML = erg.pruefhinweise.length
+        ? `<div class="pruefhinweise"><strong>Prüfhinweise</strong><ul>${erg.pruefhinweise.map((h) => `<li>${h}</li>`).join('')}</ul></div>`
+        : '';
+      $('ausgabe').value = erg.messungen.length ? MEP.befundtext(eingabe, erg) : '';
+    }
+
+    baue();
+    document.addEventListener('input', aktualisiere);
+    document.addEventListener('change', aktualisiere);
+    $('kopieren').addEventListener('click', () => {
+      navigator.clipboard.writeText($('ausgabe').value).catch(() => { $('ausgabe').select(); document.execCommand('copy'); });
+    });
+    $('leeren').addEventListener('click', () => {
+      O.leeren();
+      aktualisiere();
+    });
+    aktualisiere();
+
+    // Offline-Nutzung als Web-App (nur über https, nicht als lokale Datei)
+    if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+      navigator.serviceWorker.register('../sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
