@@ -343,9 +343,8 @@ const MEP = (function () {
       const d = eingabe[`${ziel}-${seite}`];
       if (!d || (!d.keinMep && ![d.leitzeit, d.dml, d.fLatenz].some(da))) return;
       const uln = normwerte.mep[ziel].zml;
-      // Im Befund wie in den anderen Programmen nach dem Nerv benannt, der Muskel in Klammern
-      const muskel = `${def.nerv} ${SEITE_LANG[seite]} (${def.muskel})`;
-      const m = { ziel, seite, def, muskel, name: `${def.nerv} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
+      const muskel = `${def.muskel} ${SEITE_LANG[seite]}`;
+      const m = { ziel, seite, def, muskel, name: `${def.muskel} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
       if (d.keinMep) {
         m.pathologisch = true;
       } else {
@@ -393,9 +392,10 @@ if (typeof module !== 'undefined') module.exports = MEP;
     const $ = (id) => document.getElementById(id);
     const O = OBERFLAECHE;
     const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 2 });
-    // "N. ulnaris" / "M. abductor digiti minimi" -> "Ulnaris (Abductor digiti minimi)"
     const gross = (n) => n.charAt(0).toUpperCase() + n.slice(1);
-    const name = (def) => `${gross(def.nerv.replace(/^N\. /, ''))} (${gross(def.muskel.replace(/^M\. /, ''))})`;
+    // "M. abductor digiti minimi" -> "Abductor digiti minimi", "N. ulnaris" -> "Ulnaris"
+    const name = (def) => gross(def.muskel.replace(/^M\. /, ''));
+    const nerv = (def) => gross(def.nerv.replace(/^N\. /, ''));
 
     // ---------- Formular aufbauen ----------
 
@@ -410,8 +410,8 @@ if (typeof module !== 'undefined') module.exports = MEP;
         return O.block(`mep-${k}`, s, `MEP ${name(def)}`, `<table>
           <tr><th></th><th>Wert</th><th>Norm</th></tr>
           ${zeile('Leitzeit MEP [ms]', 'leitzeit', '')}
-          ${zeile('DML [ms]', 'dml', '')}
-          ${zeile('min. F-Wellen-Latenz [ms]', 'f', '')}
+          ${zeile(`DML ${nerv(def)} [ms]`, 'dml', '')}
+          ${zeile(`min. F-Wellen-Latenz ${nerv(def)} [ms]`, 'f', '')}
           <tr><td>kein MEP ableitbar</td><td><input type="checkbox" id="${p}-kein"></td><td></td></tr>
           <tr class="normzeile"><td><strong>Zentrale mot. Leitzeit [ms]</strong></td><td id="${p}-zml">–</td>
             <td class="norm">≤ ${zahl(NORMWERTE.mep[k].zml)} ms</td></tr>

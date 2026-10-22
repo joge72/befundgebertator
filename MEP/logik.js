@@ -43,9 +43,8 @@ const MEP = (function () {
       const d = eingabe[`${ziel}-${seite}`];
       if (!d || (!d.keinMep && ![d.leitzeit, d.dml, d.fLatenz].some(da))) return;
       const uln = normwerte.mep[ziel].zml;
-      // Im Befund wie in den anderen Programmen nach dem Nerv benannt, der Muskel in Klammern
-      const muskel = `${def.nerv} ${SEITE_LANG[seite]} (${def.muskel})`;
-      const m = { ziel, seite, def, muskel, name: `${def.nerv} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
+      const muskel = `${def.muskel} ${SEITE_LANG[seite]}`;
+      const m = { ziel, seite, def, muskel, name: `${def.muskel} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
       if (d.keinMep) {
         m.pathologisch = true;
       } else {
