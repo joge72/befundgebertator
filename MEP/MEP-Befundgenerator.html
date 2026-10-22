@@ -330,8 +330,10 @@ const MEP = (function () {
     normal: (muskeln) => (muskeln.length > 1
       ? `Bei Ableitung über ${undListe(muskeln.map((m) => `dem ${m}`))} sind die zentralmotorischen Leitungszeiten regelrecht.`
       : `Bei Ableitung über dem ${muskeln[0]} ist die zentralmotorische Leitungszeit regelrecht.`),
-    beurteilungPath: (wege) => `Verlängerte bzw. fehlende zentralmotorische Leitung ${undListe(wege)}; vereinbar mit einer Läsion der kortikospinalen Bahn.`,
-    beurteilungNormal: 'Regelrechte zentralmotorische Leitungszeiten, kein Hinweis auf eine Läsion der kortikospinalen Bahn.',
+    // Beurteilung: zuerst die pathologischen, dann die unauffälligen Ableitungen
+    verlaengertBeurteilung: (orte) => `Verlängerte zentralmotorische Leitungszeit ${undListe(orte)}.`,
+    fehlendBeurteilung: (orte) => `Fehlende MEP ${undListe(orte)}.`,
+    unauffaellig: (orte) => `Unauffällige MEP ${orte}.`,
   };
 
   // ---------- Auswertung ----------
@@ -363,6 +365,32 @@ const MEP = (function () {
     return { messungen, pruefhinweise: hinweise, warnungen: [] };
   }
 
+  // "zur unteren Extremität links", bei beiden Seiten "beidseits" bzw. ohne Seitenangabe
+  function orteText(messungen, beidseitsWort) {
+    const orte = [];
+    ['obere', 'untere'].forEach((ext) => {
+      const seiten = messungen.filter((m) => m.def.extremitaet === ext).map((m) => m.seite);
+      if (!seiten.length) return;
+      const beide = seiten.includes('re') && seiten.includes('li');
+      orte.push({ ext, seite: beide ? beidseitsWort : SEITE_LANG[seiten[0]] });
+    });
+    return orte;
+  }
+
+  function beurteilung(messungen) {
+    const saetze = [];
+    const zur = (o) => `zur ${o.ext}n Extremität${o.seite ? ` ${o.seite}` : ''}`;
+    const verlaengert = messungen.filter((m) => m.pathologisch && !m.keinMep);
+    const fehlend = messungen.filter((m) => m.keinMep);
+    if (verlaengert.length) saetze.push(T.verlaengertBeurteilung(orteText(verlaengert, 'beidseits').map(zur)));
+    if (fehlend.length) saetze.push(T.fehlendBeurteilung(orteText(fehlend, 'beidseits').map(zur)));
+    // Unauffällige Seiten: beide Seiten einer Extremität ohne Seitenangabe
+    const normal = orteText(messungen.filter((m) => !m.pathologisch && m.zml !== null), '');
+    if (normal.length === 2 && normal.every((o) => !o.seite)) saetze.push(T.unauffaellig('zur oberen und unteren Extremität'));
+    else if (normal.length) saetze.push(T.unauffaellig(undListe(normal.map(zur))));
+    return saetze;
+  }
+
   function befundtext(eingabe, erg) {
     const z = [T.ueberschrift, '', T.abschnitt];
     erg.messungen.filter((m) => m.pathologisch).forEach((m) => {
@@ -372,13 +400,7 @@ const MEP = (function () {
     if (normal.length) z.push(T.normal(normal));
 
     z.push('', 'Beurteilung:');
-    const path = erg.messungen.filter((m) => m.pathologisch);
-    if (path.length) {
-      const wege = [...new Set(path.map((m) => `zur ${m.def.extremitaet}n Extremität ${SEITE_LANG[m.seite]}`))];
-      z.push(T.beurteilungPath(wege));
-    } else if (normal.length) {
-      z.push(T.beurteilungNormal);
-    }
+    z.push(...beurteilung(erg.messungen));
     return z.join('\n');
   }
 
