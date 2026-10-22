@@ -28,8 +28,8 @@ const MEP = (function () {
     verlaengert: (muskel, wert) => `Nach transkranieller Magnetstimulation und Ableitung über dem ${muskel} findet sich eine verlängerte zentralmotorische Leitungszeit von ${zahl(wert, 2)} ms.`,
     keinMep: (muskel) => `Nach transkranieller Magnetstimulation ist über dem ${muskel} kein motorisch evoziertes Potential ableitbar.`,
     normal: (muskeln) => (muskeln.length > 1
-      ? `Die zentralmotorischen Leitungszeiten ${undListe(muskeln.map((m) => `zum ${m}`))} sind regelrecht.`
-      : `Die zentralmotorische Leitungszeit zum ${muskeln[0]} ist regelrecht.`),
+      ? `Bei Ableitung über ${undListe(muskeln.map((m) => `dem ${m}`))} sind die zentralmotorischen Leitungszeiten regelrecht.`
+      : `Bei Ableitung über dem ${muskeln[0]} ist die zentralmotorische Leitungszeit regelrecht.`),
     beurteilungPath: (wege) => `Verlängerte bzw. fehlende zentralmotorische Leitung ${undListe(wege)}; vereinbar mit einer Läsion der kortikospinalen Bahn.`,
     beurteilungNormal: 'Regelrechte zentralmotorische Leitungszeiten, kein Hinweis auf eine Läsion der kortikospinalen Bahn.',
   };
@@ -43,8 +43,9 @@ const MEP = (function () {
       const d = eingabe[`${ziel}-${seite}`];
       if (!d || (!d.keinMep && ![d.leitzeit, d.dml, d.fLatenz].some(da))) return;
       const uln = normwerte.mep[ziel].zml;
-      const muskel = `${def.muskel} ${SEITE_LANG[seite]}`;
-      const m = { ziel, seite, def, muskel, name: `${def.muskel} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
+      // Im Befund wie in den anderen Programmen nach dem Nerv benannt, der Muskel in Klammern
+      const muskel = `${def.nerv} ${SEITE_LANG[seite]} (${def.muskel})`;
+      const m = { ziel, seite, def, muskel, name: `${def.nerv} ${SEITEN[seite]}`, keinMep: !!d.keinMep, zml: null, pathologisch: false };
       if (d.keinMep) {
         m.pathologisch = true;
       } else {

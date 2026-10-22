@@ -76,8 +76,9 @@
     const $ = (id) => document.getElementById(id);
     const O = OBERFLAECHE;
     const zahl = (x) => x.toLocaleString('de-DE', { maximumFractionDigits: 2 });
-    // "M. abductor digiti minimi" -> "Abductor digiti minimi"
-    const name = (def) => { const n = def.muskel.replace(/^M\. /, ''); return n.charAt(0).toUpperCase() + n.slice(1); };
+    // "N. ulnaris" / "M. abductor digiti minimi" -> "Ulnaris (Abductor digiti minimi)"
+    const gross = (n) => n.charAt(0).toUpperCase() + n.slice(1);
+    const name = (def) => `${gross(def.nerv.replace(/^N\. /, ''))} (${gross(def.muskel.replace(/^M\. /, ''))})`;
 
     // ---------- Formular aufbauen ----------
 
@@ -92,7 +93,7 @@
         return O.block(`mep-${k}`, s, `MEP ${name(def)}`, `<table>
           <tr><th></th><th>Wert</th><th>Norm</th></tr>
           ${zeile('Leitzeit MEP [ms]', 'leitzeit', '')}
-          ${zeile(`DML ${def.nerv} [ms]`, 'dml', '')}
+          ${zeile('DML [ms]', 'dml', '')}
           ${zeile('min. F-Wellen-Latenz [ms]', 'f', '')}
           <tr><td>kein MEP ableitbar</td><td><input type="checkbox" id="${p}-kein"></td><td></td></tr>
           <tr class="normzeile"><td><strong>Zentrale mot. Leitzeit [ms]</strong></td><td id="${p}-zml">–</td>
